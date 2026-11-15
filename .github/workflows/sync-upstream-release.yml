@@ -1,0 +1,115 @@
+name: Sync upstream and publish addon release
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream-main
+  cancel-in-progress: false
+
+env:
+  # Make every gh call target this fork, never the "upstream" remote.
+  GH_REPO: ${{ github.repository }}
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  sync-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out fork
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Sync with upstream
+        id: sync
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git remote add upstream https://github.com/smoergi/OneForAll_Forever.git || true
+          git fetch --no-tags upstream main
+          upstream_sha="$(git rev-parse upstream/main)"
+
+          if git merge-base --is-ancestor "$upstream_sha" HEAD; then
+            echo "Fork already includes upstream/main"
+          else
+            git -c user.name="github-actions[bot]" \
+                -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+                merge --no-edit "$upstream_sha"
+            git push origin HEAD:main
+          fi
+
+          echo "upstream_sha=$upstream_sha" >> "$GITHUB_OUTPUT"
+
+      # Runs on every execution, so a release that failed or was skipped
+      # earlier is picked up automatically by the next run.
+      - name: Read addon version and check for an existing release
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          toc="OneForAll/OneForAll.toc"
+          version="$(sed -nE 's/^## Version:[[:space:]]*([^[:space:]]+).*$/\1/p' "$toc" | head -n 1)"
+
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]]; then
+            echo "Could not read a valid addon version from $toc" >&2
+            exit 1
+          fi
+
+          tag="v$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+          if out="$(gh release view "$tag" --json tagName 2>&1)"; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "Release $tag already exists; nothing to publish."
+          elif grep -qi "not found" <<<"$out"; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "No release for $tag yet; publishing."
+          else
+            # Auth, network or API problem: fail loudly instead of guessing.
+            echo "Could not check for release $tag:" >&2
+            echo "$out" >&2
+            exit 1
+          fi
+
+      - name: Package OneForAll directory
+        if: steps.version.outputs.publish == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          package="$RUNNER_TEMP/package"
+          mkdir -p "$package/OneForAll"
+          cp -a OneForAll/. "$package/OneForAll/"
+          (cd "$package" && zip -r "$RUNNER_TEMP/OneForAll-$VERSION.zip" OneForAll)
+
+      - name: Create versioned release
+        if: steps.version.outputs.publish == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+          UPSTREAM_SHA: ${{ steps.sync.outputs.upstream_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git rev-parse --verify --quiet "refs/tags/$TAG" >/dev/null; then
+            echo "Tag $TAG exists but has no GitHub release; refusing to move or reuse it." >&2
+            echo "Delete the tag in the fork, then re-run this workflow." >&2
+            exit 1
+          fi
+          # gh creates the tag and the release together, so a failure here
+          # cannot leave a tag behind without a release.
+          gh release create "$TAG" \
+            "$RUNNER_TEMP/OneForAll-$VERSION.zip" \
+            --target "$(git rev-parse HEAD)" \
+            --title "OneForAll $VERSION" \
+            --notes "Synced from upstream commit ${UPSTREAM_SHA}. The ZIP extracts to a top-level OneForAll/ folder containing the addon files directly."
