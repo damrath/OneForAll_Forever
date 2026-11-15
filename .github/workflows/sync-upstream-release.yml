@@ -80,23 +80,13 @@ jobs:
             exit 1
           fi
 
-      - name: Package OneForAll directory
+      # Addon managers (strongbox, WowUp, instawow, ...) work out which game
+      # flavor a zip is for from its file name ("-forever", "-classic", ...)
+      # and from a release.json asset. Both follow the BigWigs packager
+      # conventions and are derived from "## Interface:" in the TOC.
+      - name: Detect game flavors and write release.json
         if: steps.version.outputs.publish == 'true'
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          package="$RUNNER_TEMP/package"
-          mkdir -p "$package/OneForAll"
-          cp -a OneForAll/. "$package/OneForAll/"
-          (cd "$package" && zip -r "$RUNNER_TEMP/OneForAll-$VERSION.zip" OneForAll)
-
-      # Addon managers (strongbox, WowUp, instawow, ...) read release.json to
-      # learn which game flavor each zip is for. Same format as the BigWigs
-      # packager writes. Flavors are derived from "## Interface:" in the TOC.
-      - name: Generate release.json
-        if: steps.version.outputs.publish == 'true'
+        id: flavors
         env:
           VERSION: ${{ steps.version.outputs.version }}
           TAG: ${{ steps.version.outputs.tag }}
@@ -108,6 +98,7 @@ jobs:
             | head -n 1 | tr -d '\r' | tr ',' '\n' | tr -d '[:blank:]')"
 
           metadata="[]"
+          flavors=()
           while IFS= read -r iface; do
             [[ -z "$iface" ]] && continue
             if [[ ! "$iface" =~ ^[0-9]+$ ]]; then
@@ -115,31 +106,60 @@ jobs:
               exit 1
             fi
             case "$iface" in
-              16???) flavor="forever" ;;
-              11???) flavor="classic" ;;
-              2????) flavor="bcc" ;;
-              3????) flavor="wrath" ;;
-              4????) flavor="cata" ;;
-              5????) flavor="mists" ;;
-              *)     flavor="mainline" ;;
+              # Interface = client version, e.g. 16001 is 1.60.1.
+              # Forever is 1.60.x to 1.99.x (same range strongbox uses).
+              1[6-9]???) flavor="forever" ;;
+              11???)     flavor="classic" ;;
+              2????)     flavor="bcc" ;;
+              3????)     flavor="wrath" ;;
+              4????)     flavor="cata" ;;
+              5????)     flavor="mists" ;;
+              ??????)    flavor="mainline" ;;
+              *)
+                echo "Interface $iface in $toc is not a known game version; update the flavor list in this workflow." >&2
+                exit 1
+                ;;
             esac
+            flavors+=("$flavor")
             metadata="$(jq -c --arg f "$flavor" --argjson i "$iface" \
               '. + [{flavor: $f, interface: $i}]' <<<"$metadata")"
           done <<<"$interfaces"
 
-          if [[ "$metadata" == "[]" ]]; then
+          if [[ ${#flavors[@]} -eq 0 ]]; then
             echo "Could not read '## Interface:' from $toc" >&2
             exit 1
           fi
 
+          # One flavor: put it in the zip name (OneForAll-6.2.9-forever.zip).
+          # Several flavors in one zip: no suffix, release.json lists them all.
+          mapfile -t unique < <(printf '%s\n' "${flavors[@]}" | sort -u)
+          if [[ ${#unique[@]} -eq 1 ]]; then
+            zip_name="OneForAll-$VERSION-${unique[0]}.zip"
+          else
+            zip_name="OneForAll-$VERSION.zip"
+          fi
+          echo "zip_name=$zip_name" >> "$GITHUB_OUTPUT"
+
           jq -n \
             --arg name "OneForAll" \
             --arg version "$TAG" \
-            --arg filename "OneForAll-$VERSION.zip" \
+            --arg filename "$zip_name" \
             --argjson metadata "$metadata" \
             '{releases: [{name: $name, version: $version, filename: $filename, nolib: false, metadata: $metadata}]}' \
             > "$RUNNER_TEMP/release.json"
           cat "$RUNNER_TEMP/release.json"
+
+      - name: Package OneForAll directory
+        if: steps.version.outputs.publish == 'true'
+        env:
+          ZIP_NAME: ${{ steps.flavors.outputs.zip_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          package="$RUNNER_TEMP/package"
+          mkdir -p "$package/OneForAll"
+          cp -a OneForAll/. "$package/OneForAll/"
+          (cd "$package" && zip -r "$RUNNER_TEMP/$ZIP_NAME" OneForAll)
 
       - name: Create versioned release
         if: steps.version.outputs.publish == 'true'
@@ -147,6 +167,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           TAG: ${{ steps.version.outputs.tag }}
           UPSTREAM_SHA: ${{ steps.sync.outputs.upstream_sha }}
+          ZIP_NAME: ${{ steps.flavors.outputs.zip_name }}
         shell: bash
         run: |
           set -euo pipefail
@@ -158,7 +179,7 @@ jobs:
           # gh creates the tag and the release together, so a failure here
           # cannot leave a tag behind without a release.
           gh release create "$TAG" \
-            "$RUNNER_TEMP/OneForAll-$VERSION.zip" \
+            "$RUNNER_TEMP/$ZIP_NAME" \
             "$RUNNER_TEMP/release.json" \
             --target "$(git rev-parse HEAD)" \
             --title "OneForAll $VERSION" \
