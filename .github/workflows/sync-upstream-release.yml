@@ -92,6 +92,55 @@ jobs:
           cp -a OneForAll/. "$package/OneForAll/"
           (cd "$package" && zip -r "$RUNNER_TEMP/OneForAll-$VERSION.zip" OneForAll)
 
+      # Addon managers (strongbox, WowUp, instawow, ...) read release.json to
+      # learn which game flavor each zip is for. Same format as the BigWigs
+      # packager writes. Flavors are derived from "## Interface:" in the TOC.
+      - name: Generate release.json
+        if: steps.version.outputs.publish == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          toc="OneForAll/OneForAll.toc"
+          interfaces="$(sed -nE 's/^## Interface:[[:space:]]*(.*)$/\1/p' "$toc" \
+            | head -n 1 | tr -d '\r' | tr ',' '\n' | tr -d '[:blank:]')"
+
+          metadata="[]"
+          while IFS= read -r iface; do
+            [[ -z "$iface" ]] && continue
+            if [[ ! "$iface" =~ ^[0-9]+$ ]]; then
+              echo "Unexpected interface value '$iface' in $toc" >&2
+              exit 1
+            fi
+            case "$iface" in
+              16???) flavor="forever" ;;
+              11???) flavor="classic" ;;
+              2????) flavor="bcc" ;;
+              3????) flavor="wrath" ;;
+              4????) flavor="cata" ;;
+              5????) flavor="mists" ;;
+              *)     flavor="mainline" ;;
+            esac
+            metadata="$(jq -c --arg f "$flavor" --argjson i "$iface" \
+              '. + [{flavor: $f, interface: $i}]' <<<"$metadata")"
+          done <<<"$interfaces"
+
+          if [[ "$metadata" == "[]" ]]; then
+            echo "Could not read '## Interface:' from $toc" >&2
+            exit 1
+          fi
+
+          jq -n \
+            --arg name "OneForAll" \
+            --arg version "$TAG" \
+            --arg filename "OneForAll-$VERSION.zip" \
+            --argjson metadata "$metadata" \
+            '{releases: [{name: $name, version: $version, filename: $filename, nolib: false, metadata: $metadata}]}' \
+            > "$RUNNER_TEMP/release.json"
+          cat "$RUNNER_TEMP/release.json"
+
       - name: Create versioned release
         if: steps.version.outputs.publish == 'true'
         env:
@@ -110,6 +159,15 @@ jobs:
           # cannot leave a tag behind without a release.
           gh release create "$TAG" \
             "$RUNNER_TEMP/OneForAll-$VERSION.zip" \
+            "$RUNNER_TEMP/release.json" \
             --target "$(git rev-parse HEAD)" \
             --title "OneForAll $VERSION" \
-            --notes "Synced from upstream commit ${UPSTREAM_SHA}. The ZIP extracts to a top-level OneForAll/ folder containing the addon files directly."
+            --notes-file - <<EOF
+          This is an unmodified 1:1 copy of [OneForAll](https://github.com/smoergi/OneForAll_Forever) $VERSION by smoergi, repackaged as a GitHub release so it can be installed and updated with addon managers such as Strongbox.
+
+          - **Addon files:** identical to upstream commit [\`${UPSTREAM_SHA:0:7}\`](https://github.com/smoergi/OneForAll_Forever/commit/${UPSTREAM_SHA}), with no changes.
+          - **Releases:** built automatically whenever the upstream version changes.
+          - **Bugs and feature requests:** please report them to the [original repository](https://github.com/smoergi/OneForAll_Forever/issues), not here.
+
+          All credit goes to the original author.
+          EOF
