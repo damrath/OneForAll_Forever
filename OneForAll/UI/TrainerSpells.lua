@@ -59,6 +59,8 @@ local function rankOf(text)
   return tonumber(type(text) == "string" and text:match("(%d+)") or nil) or 0
 end
 
+-- spells the spellbook drops once a later one is learned: id -> the later spell's id
+local SUPERSEDED = { [5487] = 9634 } -- Bear Form -> Dire Bear Form
 -- spellbook: highest known rank per spell name
 local function knownSpells()
   local known = {}
@@ -286,6 +288,9 @@ local function spellList(cid)
         local ok, yes = pcall(IsSpellKnown or function() end, id)
         -- rogue poisons are recipes of the Poisons skill, not in the spellbook (6.2.2): IsPlayerSpell knows them
         if not (ok and yes) and IsPlayerSpell then ok, yes = pcall(IsPlayerSpell, id) end
+        -- replaced in the spellbook by a later spell (6.2.10, Discord eclipsetech 15.11.: Bear Form quest listed again
+        -- once Dire Bear Form was learned at 40)
+        if not (ok and yes) and SUPERSEDED[id] then ok, yes = pcall(IsSpellKnown or function() end, SUPERSEDED[id]) end
         if ok and yes then known[name] = rank end
       end
     end
