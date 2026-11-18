@@ -209,30 +209,6 @@ FLT.DUNGEON_REGISTRY["Blackfathom Deeps"] = {
         },
         {
             level = 25,
-            id = 78916,
-            name = "The Heart of the Void",
-            requires = 25,
-            faction = "Alliance",
-            pickup = "Blackfathom Pearl, dropped inside Blackfathom Deeps",
-            objective = "Bring the Blackfathom Pearl to Dawnwatcher Selgorm in Darnassus.",
-            turnin = "Dawnwatcher Selgorm, Darnassus",
-            rewardItems = {
-            },
-        },
-        {
-            level = 25,
-            id = 78917,
-            name = "The Heart of the Void",
-            requires = 25,
-            faction = "Horde",
-            pickup = "Blackfathom Pearl, dropped inside Blackfathom Deeps",
-            objective = "Bring the Blackfathom Pearl to Bashana Runetotem in Thunder Bluff.",
-            turnin = "Bashana Runetotem, Thunder Bluff",
-            rewardItems = {
-            },
-        },
-        {
-            level = 25,
             id = 1740,
             liveXPFallback = 5100,
             name = "The Orb of Soran'ruk",

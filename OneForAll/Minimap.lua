@@ -56,7 +56,7 @@ local function updateDragging(self)
 end
 
 -- the logo in the chosen color: "round" (minimap button) or "card" (collector button)
-local LOGO_COLORS = { red = true, blue = true, green = true, teal = true, violet = true }
+local LOGO_COLORS = { red = true, blue = true, green = true, teal = true, violet = true, black = true } -- black: 6.2.11, user 17.11.
 -- "bronze" (header test, user 31.10.): the logo of the window header - the turquoise file without colour, tinted
 -- bronze-gold (FLT.TintLogo on every texture that shows it)
 function FLT.LogoTexture(kind)
@@ -76,6 +76,15 @@ function FLT.ApplyLogoColor()
   if FLT.collectorIcon then FLT.collectorIcon:SetTexture(FLT.LogoTexture("card")); FLT.TintLogo(FLT.collectorIcon) end
   if FLT.trainerTabIcon then FLT.trainerTabIcon:SetTexture(FLT.LogoTexture("round")); FLT.TintLogo(FLT.trainerTabIcon) end
   if FLT.collectorHi then FLT.collectorHi:SetTexture(FLT.LogoTexture("card")); FLT.TintLogo(FLT.collectorHi) end
+end
+-- QoL "logoSize" (6.2.11, user 17.11.): size of the OneForAll minimap button and of the collector button, 60 - 150 %.
+-- Sizes, not SetScale: the minimap button keeps its centre on the ring (positionButton), the collector its corner.
+function FLT.ApplyLogoSize()
+  local s = (FLT.QoL and FLT.QoL.Get and tonumber(FLT.QoL.Get("logoSize")) or 100) / 100
+  if s < 0.6 or s > 1.5 then s = 1 end
+  if button then button:SetSize(31 * s, 31 * s); button.icon:SetSize(25 * s, 25 * s); button.hl:SetSize(31 * s, 31 * s) end
+  local c = FLT.collectorIcon and FLT.collectorIcon:GetParent()
+  if c then c:SetSize(34 * s, 42 * s) end
 end
 
 function FLT:CreateMinimapButton()
@@ -106,6 +115,8 @@ function FLT:CreateMinimapButton()
   highlight:SetBlendMode("ADD")
   highlight:SetSize(31, 31)
   highlight:SetPoint("CENTER", 0, 0)
+  button.hl = highlight
+  FLT.ApplyLogoSize()
 
   -- Shift-right-click: the Crafting List (user 24.10.)
   button:SetScript("OnClick", function(_, mouse)
@@ -342,7 +353,7 @@ do
   ev:SetScript("OnEvent", function(self)
     self:UnregisterAllEvents()
     if FLT.QoL and FLT.QoL.On then
-      FLT.QoL.On("mmSquare", FLT.ApplySquareMinimap); FLT.QoL.On("logoColor", FLT.ApplyLogoColor)
+      FLT.QoL.On("mmSquare", FLT.ApplySquareMinimap); FLT.QoL.On("logoColor", FLT.ApplyLogoColor); FLT.QoL.On("logoSize", FLT.ApplyLogoSize)
     end
     if FLT.SafeCall then FLT.SafeCall("SquareMinimap", FLT.ApplySquareMinimap) else pcall(FLT.ApplySquareMinimap) end
     local q = type(OneForAllDB) == "table" and OneForAllDB.qol

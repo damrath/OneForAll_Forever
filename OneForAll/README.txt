@@ -71,6 +71,36 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 Changelog (newest first)
 ========================
 
+6.2.11 - Quest mark position by dragging, black logo, more Forever quest data and many fixes
+============================================================================================
+- Quest marks on nameplates: the position drop-down is replaced by a sample nameplate in Quality of Life > Quests -
+  drag the sword / bag anywhere around it, also below the plate; "Reset" puts it back. The progress text sits on the
+  outer side. Works with the game's nameplates and with nameplate addons like Platynator and Plater (the mark sits at
+  their health bar, at a normal size). No more "Can't measure restricted regions" errors.
+- Quest marks on nameplates: also on the mobs of the new WoW Forever quests (about 770 more mobs).
+- Quality of Life > Interface > Minimap: new logo color "Black" and a "Logo size" slider (60 - 150 %) for the OneForAll
+  minimap button and the collector button.
+- Gear Planner: about 330 more quest rewards of the new WoW Forever quests. Two different quests with the same name show
+  their quest giver, e.g. "Khan Jehn (Orgrul)" and "Khan Jehn (Nerlokh)" (Discord).
+- Gear Planner: suggestions no longer go missing after a /reload or while your worn gear is still loading - before, items
+  the game had not loaded yet were judged "no upgrade" until gear or spec changed (dungeon items gone) (Discord).
+- Hunter pets: every ability rank counts on its own - knowing Claw 4 no longer marks Claw 1-3 as learned, and an ability
+  counts only once Beast Training lists it, not when you tame the beast. The Pet Trainer list shows a missing lower rank.
+  New option "Also lower ranks" in Popups & Alerts: the pet ability alert also for a lower rank (off by default) (Discord).
+- Hunter pets: the "pet ability nearby" alert can be closed in combat again and no longer covers group invites (Discord).
+- Check low spell ranks: also spells bound in the game's Click Casting, shown with "(Click Casting)" (Discord).
+- Quest XP on the experience bar: works with Bartender4 and uses the bar that is shown (Discord).
+- Minimap button collector: buttons like WIM's that put themselves back on the minimap stay in the bar (Discord).
+- Scarlet Monastery: reopening the window inside a wing keeps the wing you looked at (Discord).
+- Dungeons & Raids: German, French, Spanish and Portuguese clients show the wing again (Scarlet Monastery, Dire Maul,
+  Blackrock Spire); a boss's note line sits right of the portrait (Discord).
+- Removed what is not in WoW Forever: The Heart of the Void, Goblin Lockpicks, Alonso's Dragonslayer quests, Hammer of
+  the Righteous at the class trainer (Discord).
+- Hide error messages stays on even when the game or another addon turns the messages back on (Discord).
+- Quest sharing: no blocked action in combat (Discord).
+- Map Landmarks: Skyborne Ley Lines and Elemental Convergences from SLLCM 1.3.0 plus players' reports.
+- Quest data from the newest QuestieDB.
+
 6.2.10 - New dungeon pictures, armor / weapon type filter, Armory performance and many fixes
 ===========================================================================================
 - Turn in quests automatically: safer with reward choices - it waits a moment, checks the number of choices again and

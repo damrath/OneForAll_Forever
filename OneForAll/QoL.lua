@@ -16,6 +16,7 @@ local DEFAULTS = {
   lootFeedQuality = 1, lootFeedMoney = true,
   inviteMode = "friendsguild", keywordMode = "friendsguild", keyword = "inv", duelMode = "friendsguild",
   durabilityPct = 20, mmDir = "auto", logoColor = "teal", -- logo color: turquoise by default (user 27.10.)
+  logoSize = 100, -- size of the minimap / collector button in % (6.2.11, user 17.11.; 100 = as before)
   lowRank = true, -- on by default (user 15.10.)
   tipMousePos = "BOTTOMRIGHT", -- Tooltip at the mouse: off, bottom right preselected (user 13.11.; the list showed "Top left" before)
   mapLandmarks = true, lmDungeons = true, lmFlight = true, lmTransport = true, lmTransitions = true, -- transitions: on like all landmarks (user 01.11.) -- Map Landmarks: on with all parts (user 16.10.)
@@ -42,6 +43,7 @@ local DEFAULTS = {
   mapFogAlpha = 100, -- how visible the unexplored parts are, 0-100 %; 100 (user 01.11.)
   mapBooks = true, -- Library Books on the world map: on (user 23.10.)
   mapButton = true, -- OneForAll button on the world map: on (user 01.11.)
+  petAlertLower = false, -- pet ability alert also for missing lower ranks: off (user 17.11.)
   questMarkPos = "right", -- quest marks on nameplates: the switch is off, the mark right of the bar (user 01.11.)
   chatHistory = true, -- last sent messages with arrow up / down: on (user 31.10.)
   chatHide = true, chatAutoHide = 0, -- hide chat button: on, "Hide chat after": Never (user 27.10., 6.0.0)
@@ -96,7 +98,7 @@ local function on(key, fn) listeners[key] = fn end
 QoL.On = on
 QoL.LOGO_COLORS = { { key = "red", label = N"Red" }, { key = "blue", label = N"Blue" }, { key = "green", label = N"Green" },
   { key = "teal", label = N"Turquoise" }, { key = "violet", label = N"Violet" },
-  { key = "bronze", label = N"Bronze" } }
+  { key = "bronze", label = N"Bronze" }, { key = "black", label = N"Black" } }
 QoL.CHAT_HIDE_OPTIONS = { { key = 0, label = N"Never" }, { key = 10, label = N"10 seconds" }, { key = 20, label = N"20 seconds" },
   { key = 30, label = N"30 seconds" }, { key = 60, label = N"1 minute" } }
 QoL.MM_DIR_OPTIONS = { { key = "auto", label = N"Automatic" }, { key = "top", label = N"Top" }, { key = "bottom", label = N"Bottom" },
@@ -1822,24 +1824,49 @@ local xpPending
 -- Each status bar container has its own XP bar: with a tracked reputation the game shows the
 -- reputation in one container and the XP in the other, so take the XP bar that is shown
 -- (Discord sparklebeard 09.11.: quest XP gone while a reputation was tracked).
-local function findXPBar()
-  if type(MainMenuExpBar) == "table" then return MainMenuExpBar, MainMenuExpBar end
-  local first, firstHolder
-  for _, cname in ipairs({ "MainStatusTrackingBarContainer", "SecondaryStatusTrackingBarContainer", "StatusTrackingBarManager" }) do
-    local c = _G[cname]
-    if type(c) == "table" and c.GetChildren then
-      for _, ch in ipairs({ c:GetChildren() }) do
-        if ch.ExhaustionTick or ch.ExhaustionLevelFillBar then
-          local sb = ch.StatusBar or ch
-          if sb.GetMinMaxValues then
-            if not ch.IsVisible or ch:IsVisible() then return sb, ch end
-            if not first then first, firstHolder = sb, ch end
-          end
+local findXPBar
+do
+  -- XP bars below c (depth levels of children): the first shown one, else remember the first hidden one in acc
+  local function scanXP(c, depth, acc)
+    if type(c) ~= "table" or not c.GetChildren then return end
+    for _, ch in ipairs({ c:GetChildren() }) do
+      if ch.ExhaustionTick or ch.ExhaustionLevelFillBar then
+        local sb = ch.StatusBar or ch
+        if sb.GetMinMaxValues then
+          if not ch.IsVisible or ch:IsVisible() then return sb, ch end
+          if not acc[1] then acc[1], acc[2] = sb, ch end
         end
+      elseif depth > 1 then
+        local sb, h = scanXP(ch, depth - 1, acc)
+        if sb then return sb, h end
       end
     end
   end
-  return first, firstHolder
+  local acc, lastBar, lastHolder = {}, nil, nil
+  local function search()
+    -- the old bar only while it is shown (6.2.11, Discord jadyn_karn 16.11.: quest XP gone for several players - a hidden
+    -- MainMenuExpBar, e.g. from another addon, was taken although the game shows its status bars)
+    local old = type(MainMenuExpBar) == "table" and MainMenuExpBar
+    if old and (not old.IsVisible or old:IsVisible()) then return old, old end
+    wipe(acc)
+    for _, cname in ipairs({ "MainStatusTrackingBarContainer", "SecondaryStatusTrackingBarContainer", "StatusTrackingBarManager" }) do
+      local sb, h = scanXP(_G[cname], 1, acc)
+      if sb then return sb, h end
+    end
+    -- Bartender4 moves the game's XP bar into containers of its own under BT4BarStatus (6.2.11-beta23, Discord jadyn_karn
+    -- 17.11., /fstack: BT4BarStatus.content.<frame>.<frame>.<bar>); the game's own containers stay hidden
+    local sb, h = scanXP(_G.BT4BarStatus, 4, acc)
+    if sb then return sb, h end
+    if old and not acc[1] then return old, old end
+    return acc[1], acc[2]
+  end
+  findXPBar = function()
+    -- the bar found last time while it is still shown (no search on every XP / quest update)
+    if lastHolder and (not lastHolder.IsVisible or lastHolder:IsVisible()) then return lastBar, lastHolder end
+    local sb, h = search()
+    if h and (not h.IsVisible or h:IsVisible()) then lastBar, lastHolder = sb, h else lastBar, lastHolder = nil, nil end
+    return sb, h
+  end
 end
 local function updateXP()
   if not QoL.Get("questXP") then if xpMarker then xpMarker:Hide(); xpCap:Hide() end; return end
@@ -1857,16 +1884,13 @@ local function updateXP()
   end
   xpBar = bar
   if not xpHooked then
-    xpHooked = { done = {} }
+    xpHooked = { done = {}, mgr = {} }
     -- the game swaps the bars when a reputation is tracked or untracked: follow it (fires only then)
-    local mgr = _G.StatusTrackingBarManager
-    if hooksecurefunc and type(mgr) == "table" and type(mgr.UpdateBarsShown) == "function" then
-      hooksecurefunc(mgr, "UpdateBarsShown", function()
-        if QoL.Get("questXP") and not xpPending and C_Timer and C_Timer.After then
-          xpPending = true
-          C_Timer.After(0.5, function() xpPending = false; updateXP() end)
-        end
-      end)
+    xpHooked.swap = function()
+      if QoL.Get("questXP") and not xpPending and C_Timer and C_Timer.After then
+        xpPending = true
+        C_Timer.After(0.5, function() xpPending = false; updateXP() end)
+      end
     end
     local quests = {} -- reused (only while the tooltip is built)
     local function byXP(a, b) return a[2] > b[2] end
@@ -1895,6 +1919,13 @@ local function updateXP()
     end
     xpHooked.line = addLine
     if GameTooltip and GameTooltip.HookScript then GameTooltip:HookScript("OnHide", function(t) t.ofaQuestXP = nil end) end
+  end
+  -- the manager that swaps the bars: the game's, and Bartender4's own one above the bar (each hooked once)
+  local m = holder and holder.GetParent and holder:GetParent()
+  for _, mgr in ipairs({ _G.StatusTrackingBarManager, m, m and m.GetParent and m:GetParent() }) do
+    if hooksecurefunc and type(mgr) == "table" and type(mgr.UpdateBarsShown) == "function" and not xpHooked.mgr[mgr] then
+      xpHooked.mgr[mgr] = true; hooksecurefunc(mgr, "UpdateBarsShown", xpHooked.swap)
+    end
   end
   -- tooltip line on every XP bar we use (each container has its own); only frames that already
   -- show the game's tooltip (adding an OnEnter to another frame would catch the mouse and hide it)
@@ -3073,6 +3104,15 @@ local function keepError(message)
 end
 local function applyHideErrors(on)
   if type(UIErrorsFrame) ~= "table" or not UIErrorsFrame.UnregisterEvent then return end
+  -- another addon or the game may register the event again (Discord punchline5958 16.11.: "There is nothing to attack."
+  -- still shown): undo that while the option is on (hook set once, only when the option is used)
+  if on and not QoL._errHook and hooksecurefunc then
+    QoL._errHook = true
+    hooksecurefunc(UIErrorsFrame, "RegisterEvent", function(f, e)
+      if e == "UI_ERROR_MESSAGE" and QoL.Get("hideErrors") and not QoL._errOff then f:UnregisterEvent(e) end
+    end)
+  end
+  QoL._errOff = not on -- our own RegisterEvent below must not be undone
   if on then UIErrorsFrame:UnregisterEvent("UI_ERROR_MESSAGE") else UIErrorsFrame:RegisterEvent("UI_ERROR_MESSAGE") end
 end
 local function errorMessage(a1, a2)
@@ -3181,6 +3221,7 @@ local function onEventSafe(_, event, ...)
     end
   elseif event == "PLAYER_ENTERING_WORLD" then
     thanksSettle()
+    if QoL.Get("hideErrors") then applyHideErrors(true) end
     if QoL.Get("buffReminder") then C_Timer.After(2, checkBuffs) end
     updateBagSlots(); checkDurability()
   elseif event == "PLAYER_LOGOUT" then

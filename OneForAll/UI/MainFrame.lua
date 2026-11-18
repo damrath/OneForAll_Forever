@@ -719,7 +719,7 @@ function FLT:ToggleUI()
   if not frame then createUI() end
   if frame:IsShown() then frame:Hide(); return end
   -- Inside a dungeon: open straight on that dungeon's bosses & loot.
-  local d = FLT.FindCurrentDungeon and FLT.FindCurrentDungeon()
+  local d = FLT.DungeonToOpen and FLT.DungeonToOpen()
   if d and UI.IsTabVisible("dungeons") and ensurePanel("dungeons") and UI.OpenDungeon then
     setPanelTab("dungeons")
     UI.OpenDungeon(d)

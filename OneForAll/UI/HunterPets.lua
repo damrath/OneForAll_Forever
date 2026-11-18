@@ -176,7 +176,8 @@ local LIST_W, ROW_W = 302, 298 -- ht7: the list is narrower (the modes are a sid
 -- Hunters keep every pet ability rank they have learned; it is listed in the
 -- Beast Training window. We read that window when it opens, plus the active
 -- pet's spellbook, and store the highest known rank per ability per character
--- (OneForAllCharDB.petAbilities). A known rank implies all lower ranks.
+-- (OneForAllCharDB.petAbilities[ability] = { [rank] = true, ... }: every rank on its own - learning rank 4 does not teach
+-- ranks 1-3; 6.2.11, user 17.11. Up to 6.2.10 a number = the highest rank, read as "only that rank".)
 local petUI -- set by the panel; refreshed after a scan
 
 local function knownTable()
@@ -185,6 +186,10 @@ local function knownTable()
   return OneForAllCharDB.petAbilities
 end
 
+local function rankSet(v) -- a stored entry as { [rank] = true } (an old number = only that rank)
+  if type(v) == "table" then return v end
+  if type(v) == "number" and v > 0 then return { [v] = true } end
+end
 local function rankNumber(sub)
   return tonumber(type(sub) == "string" and sub:match("(%d+)") or nil) or 1
 end
@@ -221,25 +226,27 @@ local function abilityEN(name)
     end
     for k, r in pairs(move or {}) do
       local e = byClient[k]
-      if (t[e] or 0) < r then t[e] = r end
+      if t[e] == nil then t[e] = r end
       t[k] = nil
     end
   end
   return byClient[name] or en
 end
 
-local function noteKnown(name, rank)
-  local t = knownTable()
-  if not t or not name or name == "" then return false end
-  rank = rank or 1
-  name = abilityEN(name)
-  if (t[name] or 0) < rank then t[name] = rank; return true end
-  return false
-end
-
+-- the highest known rank (0 = none)
 function FLT:GetKnownPetRank(name)
-  local t = knownTable()
-  return t and t[name] or 0
+  local set, best = rankSet(knownTable() and knownTable()[name]), 0
+  for r in pairs(set or {}) do if r > best then best = r end end
+  return best
+end
+function FLT:HasPetRank(name, rank)
+  local set = rankSet(knownTable() and knownTable()[name])
+  return set and set[rank or 1] and true or false
+end
+function FLT:CountPetRanks(name)
+  local n = 0
+  for _ in pairs(rankSet(knownTable() and knownTable()[name]) or {}) do n = n + 1 end
+  return n
 end
 
 local function scanBeastTraining()
@@ -249,19 +256,28 @@ local function scanBeastTraining()
   local own
   pcall(function() own = (C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(5149)) or (GetSpellInfo and GetSpellInfo(5149)) end)
   if line and line ~= "Beast Training" and line ~= (BEAST_TRAINING or "") and line ~= own then return end
-  local changed = false
+  -- the ranks the window lists replace the stored ones, each rank on its own (up to 6.2.10 the pet's spellbook could store
+  -- a rank the hunter had not learned yet, and a high rank counted for all lower ones)
+  local changed, t, seen = false, knownTable(), {}
   for i = 1, GetNumCrafts() or 0 do
     local name, sub, kind = GetCraftInfo(i)
-    if name and kind ~= "header" then
-      if noteKnown(name, rankNumber(sub)) then changed = true end
+    if name and kind ~= "header" and name ~= "" then
+      local en = abilityEN(name)
+      seen[en] = seen[en] or {}; seen[en][rankNumber(sub)] = true
     end
+  end
+  for en, set in pairs(seen) do
+    local old, same = rankSet(t and t[en]), true
+    for r in pairs(set) do if not (old and old[r]) then same = false end end
+    for r in pairs(old or {}) do if not set[r] then same = false end end
+    if t and (not same or type(t[en]) ~= "table") then t[en] = set; changed = changed or not same end
   end
   if knownTable() then OneForAllCharDB.petAbilitiesScanned = true end
   if petUI and petUI.refreshKnown then petUI.refreshKnown() end
   return changed
 end
 
--- Pet spellbook: the Forever client uses the modern C_SpellBook API (new
+-- Pet spellbook (for the teacher alert: abilities the active pet has): the Forever client uses the modern C_SpellBook API (new
 -- spellbook with search box); older clients have the global functions.
 local function petSpellCount()
   if C_SpellBook and C_SpellBook.HasPetSpells then
@@ -294,20 +310,9 @@ local function petSpellName(i)
   end
 end
 
-local function scanPetSpellbook()
-  local n = petSpellCount()
-  if not n or n == 0 then return end
-  local found = false
-  for i = 1, n do
-    local name, sub = petSpellName(i)
-    if name and type(sub) == "string" and sub:match("%d") then
-      noteKnown(name, rankNumber(sub)); found = true
-    end
-  end
-  if found and knownTable() then OneForAllCharDB.petAbilitiesScanned = true end
-  if petUI and petUI.refreshKnown then petUI.refreshKnown() end
-end
-FLT.ScanPetAbilities = function() scanPetSpellbook(); scanBeastTraining() end
+-- The pet's spellbook is not read for known ranks any more (6.2.11, Discord jontasson 16.11.): a freshly tamed pet lists its abilities
+-- there before the hunter has learned them (the pet has to use them first), so only Beast Training counts.
+FLT.ScanPetAbilities = function() scanBeastTraining() end
 
 -- Stabled pets are only readable while the stable master window is open, so
 -- the last seen list is stored per character (OneForAllCharDB.stablePets).
@@ -490,17 +495,21 @@ local function checkTeacher(unit)
   local fams = myPetFamilies()
   if not next(fams) then return end
   local best
+  -- a rank above the highest known; with the switch also a missing lower one (6.2.11, user 17.11., off by default)
+  local lower = FLT.QoL and FLT.QoL.Get("petAlertLower")
   for _, e in ipairs(entries) do
-    local known = FLT:GetKnownPetRank(e.ability.name)
-    if (e.rank.rank or 1) > known and not FLT:IsPetAlertIgnored(e.ability.name) then
+    local rk, name = e.rank.rank or 1, e.ability.name
+    local known = FLT:GetKnownPetRank(name)
+    if (rk > known or (lower and not FLT:HasPetRank(name, rk))) and not FLT:IsPetAlertIgnored(name) then
       local fits = abilityFits(e.ability, fams)
-      if #fits > 0 and (not best or e.rank.rank > best.e.rank.rank) then best = { e = e, known = known, fits = fits } end
+      if #fits > 0 and (not best or rk > best.e.rank.rank) then best = { e = e, known = known, fits = fits } end
     end
   end
   if not best then return end
   if lastTamedNpc == npcID and UnitExists and UnitExists("pet") then return end
-  local petRank = activePetRank(best.e.ability.name)
-  if petRank and petRank >= (best.e.rank.rank or 1) then return end
+  local petRank, brk = activePetRank(best.e.ability.name), best.e.rank.rank or 1
+  -- the active pet already has it (a higher rank on the pet does not teach a lower one)
+  if petRank and (petRank == brk or (brk > best.known and petRank >= brk)) then return end
   alerted[npcID] = now
   local e = best.e
   local guid = UnitGUID and UnitGUID(unit)
@@ -533,8 +542,7 @@ do
       local _, cls = UnitClass("player")
       if cls ~= "HUNTER" then self:UnregisterAllEvents(); return end
       pcall(self.RegisterUnitEvent or self.RegisterEvent, self, "UNIT_SPELLCAST_START", "player")
-      for _, e in ipairs({"CRAFT_SHOW", "CRAFT_UPDATE", "UNIT_PET", "PET_BAR_UPDATE", "SPELLS_CHANGED", "PET_SPELL_POWER_UPDATE", "LEARNED_SPELL_IN_TAB", "PET_STABLE_SHOW", "PET_STABLE_UPDATE", "NAME_PLATE_UNIT_ADDED", "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT"}) do pcall(self.RegisterEvent, self, e) end
-      scanPetSpellbook()
+      for _, e in ipairs({"CRAFT_SHOW", "CRAFT_UPDATE", "UNIT_PET", "PET_STABLE_SHOW", "PET_STABLE_UPDATE", "NAME_PLATE_UNIT_ADDED", "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT"}) do pcall(self.RegisterEvent, self, e) end
     elseif event == "CRAFT_SHOW" or event == "CRAFT_UPDATE" then
       scanBeastTraining()
     elseif event == "PET_STABLE_SHOW" or event == "PET_STABLE_UPDATE" then
@@ -550,8 +558,7 @@ do
       checkTeacher("target")
     elseif event == "UPDATE_MOUSEOVER_UNIT" then
       checkTeacher("mouseover")
-    else
-      scanPetSpellbook()
+    else -- UNIT_PET: the active pet's family is marked
       if petUI and petUI.refreshKnown then petUI.refreshKnown() end
     end
   end)
@@ -940,7 +947,7 @@ local function createPetsPanel(parent)
         local k = FLT:GetKnownPetRank(a.name)
         return k > 0 and ("|cff59ff73" .. string.format(L["Rank %s"], k) .. "|r  " .. L["Pet Trainer"]) or L["Pet Trainer"]
       end
-      local k = FLT:GetKnownPetRank(a.name)
+      local k = FLT:CountPetRanks(a.name)
       local mute = FLT:IsPetAlertIgnored(a.name) and ("  |cff808080" .. L["(no alert)"] .. "|r") or ""
       if k > 0 then return "|cff59ff73" .. string.format(L["%d/%d learned"], math.min(k, #(a.ranks or {})), #(a.ranks or {})) .. "|r" .. mute end
       return string.format(L["%d ranks"], #(a.ranks or {})) .. mute
@@ -1004,7 +1011,7 @@ local function createPetsPanel(parent)
       for _, r in ipairs(a.ranks or {}) do if #(r.learnFrom or {}) > 0 then noneKnown = false end end
       if noneKnown then addIntro(L["New in WoW Forever: no beast that teaches this ability is known yet."], 0.65, 0.85, 1) end
       local scanHint = text(child, "GameFontDisableSmall", W - 10)
-      scanHint:SetText(L["Green = rank you already know. Summon your pet (or open Beast Training) so OneForAll can read your known ranks."])
+      scanHint:SetText(L["Green = rank you already know. Open Beast Training once so OneForAll can read your known ranks."])
 
       -- One card per rank: header line, effect, and the teaching beasts (fold out).
       for ri, r in ipairs(a.ranks or {}) do
@@ -1069,11 +1076,10 @@ local function createPetsPanel(parent)
 
       child.refresh = function()
         alertCB:SetChecked(not FLT:IsPetAlertIgnored(a.name))
-        local known = FLT:GetKnownPetRank(a.name)
         local scanned = type(OneForAllCharDB) == "table" and OneForAllCharDB.petAbilitiesScanned
         if scanned then scanHint:Hide() else scanHint:Show() end
         for _, bl in ipairs(blocks) do
-          local learned = known >= (bl.rank.rank or 1)
+          local learned = FLT:HasPetRank(a.name, bl.rank.rank or 1)
           bl.paw:ClearAllPoints()
           if learned then
             bl.bg:SetFill(0.05, 0.15, 0.07, 0.95); bl.bg:SetBorder(0.30, 0.55, 0.30, 0.9); bl.label:SetTextColor(FLT.SkinC(0.35, 1, 0.45))
@@ -1244,7 +1250,6 @@ local function createPetsPanel(parent)
       local idx = views.families and views.families.markPet and views.families.markPet()
       if idx then views.families.select(idx) end
     end
-    scanPetSpellbook()
     petUI.refreshKnown()
   end)
   panel:Hide()

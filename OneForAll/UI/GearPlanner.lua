@@ -286,6 +286,19 @@ local function buildIndex()
   local QR = FLT.QUEST_REWARDS
   if QR then
     local fac = UnitFactionGroup and SIDE[UnitFactionGroup("player")]
+    -- two reward quests with the same name (Khan Jehn: Gelkis 93128 and Magram 93196, Discord Erikzzon 17.11.): the giver
+    -- behind it. Only quests that give gear count (chains like The Legend of Stalvan reuse the name for every step), and only
+    -- when their givers differ (class versions of one quest share the giver)
+    local giverOf, dup = {}, {}
+    for qs in QR.items:gmatch("%d+,%d+,([%d/]+),") do
+      for q in qs:gmatch("%d+") do
+        local raw = QR.quests[tonumber(q)]
+        if raw then
+          local n, g = raw:match("^([^|]*)|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*|([^|]*)")
+          if n then if giverOf[n] == nil then giverOf[n] = g elseif giverOf[n] ~= g then dup[n] = true end end
+        end
+      end
+    end
     for id, req, qs, name in QR.items:gmatch("(%d+),(%d+),([%d/]+),([^\n]*)") do
       local pick
       for q in qs:gmatch("%d+") do
@@ -294,7 +307,9 @@ local function buildIndex()
       end
       if pick then
         req = tonumber(req)
-        local e = add(tonumber(id), name, nil, string.format(L["Quest: %s"], pick.name), req > 0 and req or pick.req)
+        local qn = pick.name
+        if pick.giver and dup[QR.quests[pick.id]:match("^[^|]*")] then qn = qn .. " (" .. pick.giver .. ")" end
+        local e = add(tonumber(id), name, nil, string.format(L["Quest: %s"], qn), req > 0 and req or pick.req)
         if e then
           e.qid, e.side, e.cls = pick.id, pick.side, pick.cls; if req > 0 then e.req = req end
           -- the level you can take the quest at: a reward without its own required level must not show earlier
@@ -1386,18 +1401,29 @@ function UI.CreateGearPlanner(parent)
       -- without data yet come in when the client has loaded them (the Armory redraws on GET_ITEM_INFO_RECEIVED)
       if GV then
         if judgedGen ~= GV.gen then wipe(judged); judgedGen = GV.gen end
-        local n = 0
+        local n, later = 0, false
         for _, e in ipairs(list) do
           local j = judged[e.id]
           if j == nil then
             local kind = GV.Change(e.id)
             if kind == "up" or kind == "new" then local _, d = GV.Upgrade(e.id); j = d or 0
-            elseif kind or e.name then j = false end -- judged: no upgrade (kept only once the item's data is there)
+            elseif kind then j = false -- judged: no upgrade
+            elseif GV.Upgrade(e.id) then later = true -- the item has a Value, the WORN gear's data is not there yet
+            elseif GetItemInfo(e.id) then j = false end -- no Value for us (kept only once the CLIENT has the item's data)
+            -- (6.2.11-beta22, Discord Mith / Canadian Crippler 17.11.: "e.name" is our own data's name and always there, so
+            -- every item the client had not loaded yet after a /reload was kept as "no upgrade" - dungeon items gone)
+            -- (6.2.11, Discord floatinghead7 17.11.: with one worn item still loading, everything was judged "no upgrade"
+            -- and kept until gear or spec changed - Timbermaw tunic missing, only Hand of Justice for a trinket)
             if j ~= nil then judged[e.id] = j end
           end
           if j then e.delta = j; n = n + 1; list[n] = e end
         end
         for i = #list, n + 1, -1 do list[i] = nil end
+        right.laterTries = later and (right.laterTries or 0) + 1 or 0 -- at most 5 more passes (lean)
+        if later and right.laterTries <= 5 and not nextPass and C_Timer and C_Timer.After then
+          nextPass = true
+          C_Timer.After(2, function() nextPass = nil; if right:IsVisible() then FLT.SafeCall("GearPlanner", refreshList) end end)
+        end
       end
       table.sort(list, function(a, b)
         if a.delta and b.delta then if a.delta ~= b.delta then return a.delta > b.delta end

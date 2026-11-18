@@ -412,9 +412,13 @@ SlashCmdList.ONEFORALL = function(cmd)
     if FLT.ScanPetAbilities then FLT.ScanPetAbilities() end
     local t = type(OneForAllCharDB) == "table" and OneForAllCharDB.petAbilities or {}
     local parts = {}
-    for name, rank in pairs(t) do parts[#parts + 1] = name .. " " .. rank end
+    for name, v in pairs(t) do -- each rank on its own since 6.2.11 (an old number = the highest rank)
+      local rs = {}
+      if type(v) == "table" then for r in pairs(v) do rs[#rs + 1] = r end; table.sort(rs) else rs[1] = v end
+      parts[#parts + 1] = name .. " " .. table.concat(rs, "/")
+    end
     table.sort(parts)
-    msg(#parts > 0 and string.format(L["Known pet abilities: %s"], table.concat(parts, ", ")) or L["No pet abilities found yet - summon your pet and try again."])
+    msg(#parts > 0 and string.format(L["Known pet abilities: %s"], table.concat(parts, ", ")) or L["Open Beast Training once so OneForAll knows your ranks"])
   elseif cmd == "news" then
     if FLT.ShowNews then FLT.ShowNews() end
   elseif cmd == "setup" then

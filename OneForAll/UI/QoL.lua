@@ -24,6 +24,7 @@ local NEW_TAGS = { -- the 6.1.x marks removed when 6.2.0 started (rule: marks st
   deValue = "6.2.6",
   tipMouse = "6.2.7",
   bookAlertNoFlying = "6.2.7",
+  logoSize = "6.2.11",
 }
 -- placed left of the checkbox (or of the label when there is none), user 16.10.
 local function newTag(parent, anchor, key, dx)
@@ -498,6 +499,19 @@ local function createQoLPanel(parent)
     end
     refreshers[#refreshers + 1] = function() local cur = Q.Get("logoColor") for k, m in pairs(marks) do m:SetShown(k == cur) end end
   end
+  do -- size of the logo button (6.2.11, user 17.11.): the minimap button and the collector button
+    local r = row(g, N"Logo size", N"How large the OneForAll minimap button is.", N"Also the button of the minimap button collector.", 24)
+    local val = FLT.NewFS(r, nil, "OVERLAY", "GameFontHighlight"); val:SetTextColor(FLT.SkinC(1, 0.82, 0.2))
+    val:SetWidth(40); val:SetJustifyH("RIGHT"); place(r, val, 10)
+    local sl = UI.Slider(r, 130, 60, 150, 5, function(v)
+      val:SetText(v .. " %")
+      if Q.Get("logoSize") ~= v then Q.Set("logoSize", v) end
+    end)
+    place(r, sl, 10)
+    hint(sl, N"Logo size", N"60 - 150 %. Mouse wheel or drag.")
+    if newTag(r, r.label, "logoSize", -4) then g.cat.new = true end
+    refreshers[#refreshers + 1] = function() local v = Q.Get("logoSize") or 100; sl:SetValue(v); val:SetText(v .. " %") end
+  end
   -- "Collect minimap buttons" and "Hide the OneForAll button" exclude each other: the one that is on greys out
   -- the other (user 24.10.; the bar needs its button)
   local collectRow, hideRow
@@ -615,7 +629,69 @@ local function createQoLPanel(parent)
   check(g, N"Best sell price on rewards", N"A gold coin on the quest reward choice that sells for the most.", N"In the quest log and when you turn in a quest with two or more rewards to choose from: the one with the highest vendor price (times the count) gets a gold coin at its top right. The green upgrade arrow stays at the top left, so an item can have both.", "questSellCoin")
   check(g, N"Quest loot sparkles", N"Quest items in the world sparkle again.", N"The game's loot glow. Quest givers and some other NPCs glow too - that comes with this game setting. Changes only this one setting - your outline settings stay as they are. After switching it off, restart the game.", "questSparkles")
   check(g, N"Quest marks on nameplates", N"A sword or a bag with your progress on mobs you need for a quest.", N"Sword: you must kill it for a quest. Bag: it drops a quest item. With the progress (3/10); nothing once that part is done. Uses the quest lines the game shows in the mob's tooltip. Not inside dungeons yet.", "questMarks")
-  choice(g, N"Mark position", N"Where the mark sits on the nameplate.", nil, "questMarkPos", FLT.QuestMarks and FLT.QuestMarks.POS_OPTIONS or { { key = "left", label = N"Left" } }, nil, 24) -- no own switch (user 31.10.)
+  if FLT.QuestMarks then -- mark position: drag the mark anywhere around a sample nameplate (6.2.11, user 17.11.: no drop-down, "360 grad um
+    -- die nameplate", also below it). The sample is fixed; the place is saved like QuestMarks.lua reads it (QM.At).
+    local QM = FLT.QuestMarks
+    local r = row(g, N"Mark position", N"Drag the mark to where you want it on the nameplate.", nil, 24)
+    -- the sample nameplate is the user's own picture (17.11.: "würde dir eine grafik helfen?"; Assets/nameplate_sample.tga,
+    -- tools/art/nameplate_sample.py: 512x128, bar fill from x 12.4, level box right edge 504.9, bar middle y 80.4, bar 19.6
+    -- high). The mark is as big as QuestMarks.lua makes it on a plate (bar 10 high -> 20), x1.25 = twice the bar height.
+    -- Scaled by the gold frame (45.8 px high in the picture): in the game the frame is 16 high around a bar of 10, so the
+    -- bar counts as 45.8 x 10/16 = 28.6 px - the picture's rim is thicker than the game's (beta12 was too big, user 17.11.)
+    local U = 22
+    local D = U / (2 * 28.6) -- screen units per picture pixel
+    local bx0, bx1, byc, bh = 12.4 * D, 504.9 * D, 81.6 * D, 28.6 * D
+    local MX, MY = QM.LIMIT_X * U, QM.LIMIT_Y * U
+    local AW, AH = MX * 2 + (bx1 - bx0), MY * 2 + bh
+    r:SetHeight(40 + AH)
+    local area = CreateFrame("Frame", nil, r); area:SetSize(AW, AH); area:SetPoint("TOPLEFT", 60 + r.indent, -38)
+    UI.Card(area, area, 4, { 0.36, 0.33, 0.28, 0.85 }, { 0.17, 0.17, 0.185, 0.97 }, "BACKGROUND", 0) -- anthracite: the black plate shows on it (user 17.11.)
+    local pic = area:CreateTexture(nil, "ARTWORK"); FLT.SetTex(pic, UI.ASSET_ROOT .. "nameplate_sample")
+    pic:SetSize(512 * D, 128 * D); pic:SetPoint("TOPLEFT", MX - bx0, -(MY + bh / 2 - byc))
+    local mark = CreateFrame("Frame", nil, area); mark:SetSize(U, U); mark:SetFrameLevel(area:GetFrameLevel() + 5)
+    mark.icon = mark:CreateTexture(nil, "OVERLAY"); mark.icon:SetAllPoints()
+    if mark.icon.SetAtlas and C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("Crosshair_Attack_32") then mark.icon:SetAtlas("Crosshair_Attack_32")
+    else FLT.SetTex(mark.icon, "Interface\\Cursor\\Attack") end
+    mark.text = FLT.NewFS(mark, nil, "OVERLAY", "GameFontHighlightSmall"); mark.text:SetText("3/8")
+    mark:EnableMouse(true); mark:RegisterForDrag("LeftButton")
+    -- sample coordinates (from the area's top left, y down) <-> QM.At(); spans as in QuestMarks.lua: L from the bar's left
+    -- edge, C across bar + level box, R from the level box's right edge
+    local x0, x1, yc = MX, MX + (bx1 - bx0), MY + bh / 2 -- bar left, level box right, bar middle (as QuestMarks.lua)
+    local function toXY(a)
+      local x = a.z == "L" and x0 + a.x * U or a.z == "R" and x1 + a.x * U or x0 + a.x * (x1 - x0)
+      return x, yc - a.y * U
+    end
+    local function fromXY(x, y)
+      local a = { y = (yc - y) / U }
+      if x < x0 then a.z, a.x = "L", (x - x0) / U elseif x > x1 then a.z, a.x = "R", (x - x1) / U else a.z, a.x = "C", (x - x0) / (x1 - x0) end
+      return a
+    end
+    local function setMark(x, y, left)
+      mark:ClearAllPoints(); mark:SetPoint("CENTER", area, "TOPLEFT", x, -y)
+      mark.text:ClearAllPoints()
+      if left then mark.text:SetPoint("RIGHT", mark, "LEFT", -1, 0) else mark.text:SetPoint("LEFT", mark, "RIGHT", 2, 0) end
+    end
+    local function show() local a = QM.At(); local x, y = toXY(a); setMark(x, y, a.z == "L") end
+    local function cursor() -- clamped to the area (half a mark inside the edge)
+      local s = area:GetEffectiveScale()
+      local cx, cy = GetCursorPosition()
+      local x = math.max(U / 2, math.min(AW - U / 2, cx / s - area:GetLeft()))
+      local y = math.max(U / 2, math.min(AH - U / 2, area:GetTop() - cy / s))
+      return x, y
+    end
+    -- following the mouse only while dragging (lean)
+    mark:SetScript("OnDragStart", function(self) self:SetScript("OnUpdate", function() local x, y = cursor(); setMark(x, y, x < x0) end) end)
+    mark:SetScript("OnDragStop", function(self)
+      self:SetScript("OnUpdate", nil)
+      local a = fromXY(cursor())
+      a.x, a.y = math.floor(a.x * 100 + 0.5) / 100, math.floor(a.y * 100 + 0.5) / 100
+      Q.Set("questMarkAt", a); show()
+    end)
+    hint(mark, N"Mark position", N"Drag the mark to where you want it on the nameplate.")
+    local reset = button(r, N"Reset", 90, nil, function() Q.Set("questMarkPos", nil); Q.Set("questMarkAt", nil); show() end)
+    reset:ClearAllPoints(); reset:SetPoint("TOPRIGHT", r, "TOPRIGHT", -10, -6)
+    refreshers[#refreshers + 1] = show
+  end
 
   -- TOOLTIPS
   c = category("tips", N"Tooltips", "Interface\\Icons\\INV_Misc_Spyglass_03", N"Extra lines in item and unit tooltips.")
@@ -854,6 +930,8 @@ local function createQoLPanel(parent)
   check(g, N"Pet ability alerts (Hunter)", N"Popup when a beast nearby teaches a higher ability rank your pets can learn.", nil, nil, nil,
     function() return FLT.IsPetTeachAlertsEnabled and FLT:IsPetTeachAlertsEnabled() and true or false end,
     function(v) if FLT.SetPetTeachAlertsEnabled then FLT:SetPetTeachAlertsEnabled(v) end end)
+  -- 6.2.11 (user 17.11.: "schalter fuer popup bei niedrigeren raengen, standard aus")
+  check(g, N"Also lower ranks", N"Also a popup for a lower rank you have not learned yet (for lower level pets).", nil, "petAlertLower", 24)
   check(g, N"Quest share popup in dungeons", N"Opens when a group member can still accept one of your dungeon quests.", nil, nil, nil,
     function() return not (type(OneForAllDB) == "table" and type(OneForAllDB.questShare) == "table" and OneForAllDB.questShare.popup == false) end,
     function(v) if type(OneForAllDB) == "table" then OneForAllDB.questShare = OneForAllDB.questShare or {}; OneForAllDB.questShare.popup = v and true or false end end)
@@ -911,7 +989,7 @@ local function createQoLPanel(parent)
       r.desc:SetWidth(ROW_W - 60 - r.indent - r.rightW - 16); r.fitted = true
     end
     r:ClearAllPoints(); r:SetPoint("TOPLEFT", 4, y); r:Show()
-    return y - 36
+    return y - (r:GetHeight() + 2) -- 34 + 2; taller rows (the quest mark sample) take their height
   end
   layout = function()
     for _, cat in ipairs(cats) do

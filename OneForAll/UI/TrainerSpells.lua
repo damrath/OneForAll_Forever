@@ -722,7 +722,7 @@ local function refreshQuests(f, c, own)
 end
 
 -- Pet training (6.2.2, user 09.11.): hunters only. The ranks of the Pet Trainer skills (Data/HunterPets.lua, source
--- "trainer") by level like the spells - your own: what Beast Training does not list yet (FLT:GetKnownPetRank, read by
+-- "trainer") by level like the spells - your own: what Beast Training does not list yet (FLT:HasPetRank, read by
 -- UI/HunterPets.lua) - then the pet trainers of your faction with a Map button (Data/PetTrainers.lua). Costs are read
 -- at a pet trainer like at the class trainer (readTrainer keeps them under the hunter's costs).
 local function refreshPet(f, c, own)
@@ -731,9 +731,8 @@ local function refreshPet(f, c, own)
   local list = {}
   for _, a in ipairs(FLT.PET_ABILITIES or {}) do
     if a.source == "trainer" then
-      local have = own and FLT.GetKnownPetRank and FLT:GetKnownPetRank(a.name) or 0
-      for _, rk in ipairs(a.ranks or {}) do
-        if rk.rank > have then list[#list + 1] = { lvl = rk.level or 1, a = a, r = rk } end
+      for _, rk in ipairs(a.ranks or {}) do -- every rank you do not have yet, also a lower one (6.2.11: ranks are learned one by one)
+        if not (own and FLT.HasPetRank and FLT:HasPetRank(a.name, rk.rank)) then list[#list + 1] = { lvl = rk.level or 1, a = a, r = rk } end
       end
     end
   end

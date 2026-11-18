@@ -290,6 +290,7 @@ function FLT.ToggleDungeonMap(test)
     for _, x in ipairs(FLT.DUNGEONS) do if FLT.DUNGEON_MAPS[x.name] then d = x; break end end
   end
   if not d then if ToggleWorldMap then ToggleWorldMap() end return end
+  if not test and FLT.DungeonToOpen then d = FLT.DungeonToOpen() or d end -- the wing already shown stays (Scarlet Monastery)
   FLT:OpenPanel("dungeons")
   if UI.OpenDungeon then UI.OpenDungeon(d, nil, "map") end
 end

@@ -23,6 +23,9 @@ local SCALE = 0.9  -- button and bar 10 % smaller than designed (user 16.10.)
 -- SetPoint/ClearAllPoints so their own addon cannot pull them back)
 local probe = CreateFrame("Frame")
 local realSetPoint, realClearAllPoints = probe.SetPoint, probe.ClearAllPoints
+-- also parent, strata and level (6.2.11-beta23, Discord chezzo 17.11.: WIM's own button calls SetParent(Minimap),
+-- SetFrameStrata and SetFrameLevel in its UpdatePosition - on start and on every drag - and left the bar)
+local realSetParent, realSetStrata, realSetLevel = probe.SetParent, probe.SetFrameStrata, probe.SetFrameLevel
 local function noop() end
 
 -- names of Blizzard minimap parts and of map pins, never collected
@@ -90,8 +93,9 @@ local function collect(f)
   for i = 1, (f:GetNumPoints() or 0) do s.points[i] = { f:GetPoint(i) } end
   collected[f] = s
   f.SetPoint, f.ClearAllPoints = noop, noop
-  f:SetParent(bar)
-  f:SetFrameStrata("MEDIUM"); f:SetFrameLevel(math.max(bar:GetFrameLevel() + 5, f:GetFrameLevel() or 0))
+  f.SetParent, f.SetFrameStrata, f.SetFrameLevel = noop, noop, noop
+  realSetParent(f, bar)
+  realSetStrata(f, "MEDIUM"); realSetLevel(f, math.max(bar:GetFrameLevel() + 5, f:GetFrameLevel() or 0))
   if f.SetAlpha then f:SetAlpha(1) end
   local size = math.max(f:GetWidth() or 31, f:GetHeight() or 31)
   f:SetScale(size > 0 and math.min(1, 31 / size) or 1)
@@ -102,6 +106,7 @@ local function release(f)
   local s = collected[f]; if not s then return end
   collected[f] = nil
   f.SetPoint, f.ClearAllPoints = nil, nil
+  f.SetParent, f.SetFrameStrata, f.SetFrameLevel = nil, nil, nil
   f:SetParent(s.parent or Minimap)
   f:SetScale(s.scale or 1)
   if s.strata then f:SetFrameStrata(s.strata) end
@@ -202,6 +207,7 @@ local function create()
   hi:SetTexture(icon:GetTexture() or (UI.ASSET_ROOT .. "logo_card_teal")); hi:SetTexCoord(9 / 64, 55 / 64, 0, 1); hi:SetBlendMode("ADD"); hi:SetAlpha(0.3)
   if FLT.TintLogo then FLT.TintLogo(hi) end
   FLT.collectorHi = hi
+  if FLT.ApplyLogoSize then FLT.ApplyLogoSize() end -- QoL "logoSize" (Minimap.lua)
 
   bar = CreateFrame("Frame", "OneForAllMinimapCollectorBar", UIParent)
   -- MEDIUM like LibDBIcon buttons (their strata/level may be fixed), low level so they draw on top

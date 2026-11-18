@@ -75,13 +75,13 @@ local function findCurrentDungeon()
   for _, d in ipairs(FLT.DUNGEONS or {}) do
     if d.instanceID and instanceID and d.instanceID == instanceID then
       if d.uiMaps and uiMap then
-        for _, m in ipairs(d.uiMaps) do if m == uiMap then return d end end
+        for _, m in ipairs(d.uiMaps) do if m == uiMap then return d, true end end
       end
-      if wing and d.key == wing then return d end
+      if wing and d.key == wing then return d, true end
       byID = byID or d
     end
   end
-  if byID then return byID end
+  if byID then return byID, false end -- not sure: a Scarlet Monastery corridor without a known place name
   for _, d in ipairs(FLT.DUNGEONS or {}) do
     local dn = normalize(d.name)
     if dn == wanted or (d.instanceName and normalize(d.instanceName) == wanted) then return d end
@@ -97,6 +97,17 @@ local function findCurrentDungeon()
 end
 
 FLT.FindCurrentDungeon = findCurrentDungeon
+-- the dungeon to open the window on: when the wing is not sure (a corridor without a known place name) and the window already
+-- shows a dungeon with the same instance ID (another Scarlet Monastery wing), that one stays (6.2.11-beta23, Discord wzrdx
+-- 17.11.: Library / Armory - every reopen jumped back to Graveyard)
+function FLT.DungeonToOpen()
+  local d, sure = findCurrentDungeon()
+  if d and not sure then
+    local cur = FLT.UI and FLT.UI.SelectedDungeon and FLT.UI.SelectedDungeon()
+    if cur and cur.instanceID and cur.instanceID == d.instanceID then return cur end
+  end
+  return d
+end
 
 -- ---------------------------------------------------------------------------
 -- Quest log helpers (modern C_QuestLog API with Classic fallbacks)
@@ -231,6 +242,8 @@ end
 local function shareQuest(c)
   if testMode then return shareQuestTest(c) end
   local q = c.quest
+  -- the game blocks sharing from an addon in combat (Discord crusty8448 16.11.: ADDON_ACTION_BLOCKED)
+  if InCombatLockdown and InCombatLockdown() then FLT.Msg(L["Not available in combat"]); return end
   selectQuest(q.id, c.logIndex)
   if not QuestLogPushQuest then return end
   lastShareQuest = q.id

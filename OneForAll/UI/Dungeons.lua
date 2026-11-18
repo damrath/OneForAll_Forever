@@ -1238,14 +1238,16 @@ local function createDungeonPanel(parent)
       if isTrash then
         -- 6.2.7-beta11: no extra line here - it ran into the header (user screenshot 13.11.); the subtitle says it
       elseif boss.description then
-        local desc=dtext(host,"GameFontHighlightSmall"); desc:SetPoint("TOPLEFT",18,-80); desc:SetWidth(500); desc:SetJustifyH("LEFT"); desc:SetText(boss.description)
+        -- right of the portrait, under the divider (Discord qithulien 16.11.: under the portrait it was covered by it)
+        local desc=dtext(host,"GameFontHighlightSmall"); desc:SetPoint("TOPLEFT",113,-84); desc:SetWidth(405); desc:SetJustifyH("LEFT"); desc:SetText(boss.description)
+        host.descH=desc.GetStringHeight and desc:GetStringHeight() or 12
       end
 
       -- thin decorative gold divider that closes the header
       -- ornate gold divider that closes the boss header
       local dv=host:CreateTexture(nil,"ARTWORK"); FLT.SetTex(dv, ASSET_ROOT.."divider_ornate")
       dv:SetPoint("TOPLEFT",108,-66); dv:SetPoint("TOPRIGHT",-24,-66); dv:SetHeight(20)
-      local lsf=dframe("ScrollFrame",host,"UIPanelScrollFrameTemplate"); lsf:SetPoint("TOPLEFT",12,-106); lsf:SetPoint("BOTTOMRIGHT",-2,8); tidyScroll(lsf,right)
+      local lsf=dframe("ScrollFrame",host,"UIPanelScrollFrameTemplate"); lsf:SetPoint("TOPLEFT",12,math.min(-106,-90-(host.descH or 0))); lsf:SetPoint("BOTTOMRIGHT",-2,8); tidyScroll(lsf,right)
       local lchild=dframe("Frame",lsf); lchild:SetSize(515,1); lsf:SetScrollChild(lchild)
       local ly=-2
       if #loot==0 then
@@ -2125,6 +2127,7 @@ local function createDungeonPanel(parent)
   -- bossName (optional): select that boss ("trash mobs" = the trash loot entry).
   -- openMode (optional): "map" opens the dungeon map.
   -- questID (6.2.2, Gear Planner, user 09.11.): open the Quests view on that quest, in your faction's list
+  UI.SelectedDungeon=function() return selectedDungeon end -- FLT.DungeonToOpen (QuestShare.lua)
   UI.OpenDungeon=function(target, bossName, openMode, questID)
     if not target then return end
     selectedDungeon=target; mode=openMode or "bosses"; browse:Hide(); detail:Show()
