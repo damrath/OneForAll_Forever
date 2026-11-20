@@ -193,9 +193,6 @@ FLT.DUNGEON_REGISTRY["Zul'Farrak"] = {
             loot = {
                 {18082, "Zum'rah's Vexing Cane", "Two-Hand, Staff", 3},
                 {18083, "Jumanza Grips", "Hands, Cloth", 3},
-                {274638, "Sandfury Pauldrons", "Shoulder, Mail", 3},
-                {274639, "Sacrificial Chain Vest", "Chest, Mail", 3},
-                {274641, "Theka's Last Breath", "Trinket", 3},
                 {274642, "Blood Ritual Ring", "Finger", 3},
             },
         },
@@ -210,9 +207,6 @@ FLT.DUNGEON_REGISTRY["Zul'Farrak"] = {
             name = "Ruuzlu",
             npcID = 7797,
             loot = {
-                {274643, "Gutcutter Hatchet", "Thrown, Thrown", 3},
-                {274644, "Undying Headdress", "Head, Mail", 3},
-                {274645, "Desert Ziggurat Drape", "Back", 3},
                 {274654, "Sandfury Guillotine", "Two-Hand, Axe", 3},
                 {274655, "Peacekeeper Wand", "Ranged, Wand", 3},
             },
@@ -254,9 +248,6 @@ FLT.DUNGEON_REGISTRY["Zul'Farrak"] = {
             loot = {
                 {9467, "Gahz'rilla Fang", "One-Hand, Dagger", 3},
                 {9469, "Gahz'rilla Scale Armor", "Chest, Mail", 3},
-                {274651, "Zealot Plate", "Chest, Plate", 3},
-                {274652, "Wall of Water", "Off Hand, Shield", 3},
-                {274653, "Deep Ritual Girdle", "Waist, Mail", 3},
                 {274657, "Hydra Leather Legs", "Legs, Leather", 3},
             },
         },
@@ -304,8 +295,6 @@ FLT.DUNGEON_REGISTRY["Zul'Farrak"] = {
             loot = {
                 {12471, "Desertwalker Cane", "Held In Off-Hand", 3},
                 {12469, "Mutilator", "Two-Hand, Sword", 3},
-                {274659, "Bloodsand Belt", "Waist, Plate", 3},
-                {274660, "Sandarr's Shoulders", "Shoulder, Mail", 3},
             },
         },
     },

@@ -25,6 +25,7 @@ local ACTIONS = {
   guide = function() if FLT.SkillUp and FLT.SkillUp.ToggleLastGuide then FLT.SkillUp.ToggleLastGuide() end end,
   skillup = function() openSub("skillup") end,
   profit = function() openSub("profit") end,
+  games = function() if FLT.GuildGames then FLT.GuildGames.Toggle() end end,
 }
 for key in pairs(TABS) do ACTIONS[key] = function() openTab(key) end end
 
@@ -41,6 +42,7 @@ local function names()
   _G.BINDING_NAME_ONEFORALL_SKILLUP = L["Skill-Up Helper"]
   _G.BINDING_NAME_ONEFORALL_GUIDE = L["Skill-Up Helper"] .. ": " .. L["Open guide"]
   _G.BINDING_NAME_ONEFORALL_PROFIT = L["Profit"]
+  _G.BINDING_NAME_ONEFORALL_GAMES = L["Guild Games"]
 end
 names()
 local ev = CreateFrame("Frame")

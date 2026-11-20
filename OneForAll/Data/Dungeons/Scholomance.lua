@@ -490,9 +490,6 @@ FLT.DUNGEON_REGISTRY["Scholomance"] = {
             npcID = 14695,
             description = "Summoned with a brazier from the Tier 0.5 set quests.",
             loot = {
-                {23132, "Lord Blackwood's Blade", "One-Hand, Sword", 3},
-                {23139, "Lord Blackwood's Buckler", "Off Hand, Shield", 3},
-                {23156, "Blackwood's Thigh", "Held In Off-Hand", 3},
             },
         },
         {

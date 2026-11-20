@@ -283,13 +283,18 @@ function FLT.ApplyDungeonMapKey()
 end
 
 -- test (/ofa dmap): any dungeon with a map when you are not in one
-function FLT.ToggleDungeonMap(test)
+function FLT.ToggleDungeonMap(test, prepared)
   if UI.IsWindowShown and UI.IsWindowShown() then FLT:ToggleUI(); return end
   local d = currentMapDungeon()
   if not d and test and FLT.DUNGEONS and FLT.DUNGEON_MAPS then
     for _, x in ipairs(FLT.DUNGEONS) do if FLT.DUNGEON_MAPS[x.name] then d = x; break end end
   end
   if not d then if ToggleWorldMap then ToggleWorldMap() end return end
+  -- 6.2.12-beta6 (Discord 18.11.: "script ran too long" on M in a dungeon): window, page and map one frame after the other
+  if not prepared and UI.PrepareWindow then
+    UI.PrepareWindow("dungeons", function() FLT.SafeCall("DungeonMapKey", FLT.ToggleDungeonMap, test, true) end)
+    return
+  end
   if not test and FLT.DungeonToOpen then d = FLT.DungeonToOpen() or d end -- the wing already shown stays (Scarlet Monastery)
   FLT:OpenPanel("dungeons")
   if UI.OpenDungeon then UI.OpenDungeon(d, nil, "map") end

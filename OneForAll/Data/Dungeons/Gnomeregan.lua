@@ -245,18 +245,6 @@ FLT.DUNGEON_REGISTRY["Gnomeregan"] = {
             rewardItems = {
             },
         },
-        {
-            level = 10,
-            id = 95041,
-            name = "Data Hoarders",
-            requires = 7,
-            faction = "Alliance",
-            pickup = "Jemma Quikswitch, Ironforge (67.7, 44.2)",
-            objective = "Collect 7 Gnomeregan Archival Data cards from around Gnomeregan, then deliver them to Jemma Quikswitch in Ironforge.",
-            turnin = "Jemma Quikswitch, Ironforge",
-            rewardItems = {
-            },
-        },
     },
     bosses = {
         {

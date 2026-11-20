@@ -901,6 +901,14 @@ local function createProfessionPanel(parent)
   showHome=function()
     hideViews(); subnav:Hide(); homeView:Show(); setNavButtonState("home"); updateHome()
   end
+  -- 6.2.12-beta25 (tester Deaders 19.11.: a profession learned / unlearned showed only after switching pages): the overview
+  -- follows SKILL_LINES_CHANGED while it is visible (next frame, after ProfessionRecipes has read the skill lines)
+  do
+    local ev=CreateFrame("Frame"); ev:RegisterEvent("SKILL_LINES_CHANGED")
+    ev:SetScript("OnEvent",function()
+      if homeView:IsVisible() and C_Timer then C_Timer.After(0,function() if homeView:IsVisible() then updateHome() end end) end
+    end)
+  end
 
   -- Left navigation: Overview, the professions, Camping Buffs (last).
   -- (5.7.0: the separate Merchant's Favor box at the bottom is gone, its button shows the amount, user 22.10.)

@@ -96,14 +96,20 @@ local function profFromName(name, skillLine)
   return nil
 end
 
--- calls fn(prof, rank, maxRank) for every profession the character has; returns true if a list was readable
+-- calls fn(prof, rank, maxRank) for every profession the character has; returns true if a list was readable, and as
+-- second value true when that list is surely complete (6.2.12-beta16: then a saved profession missing there was unlearned)
 local function eachOwnProfession(fn)
-  local any = false
+  local any, full = false, false
   -- Old skill list API
   if GetNumSkillLines and GetSkillLineInfo then
     any = true
-    for i = 1, GetNumSkillLines() or 0 do
-      local name, isHeader, _, rank, _, _, maxRank = GetSkillLineInfo(i)
+    local n = GetNumSkillLines() or 0
+    -- complete only with lines at all (early after login there are none), no folded header (its lines are not listed)
+    -- and every profession name known in the client's language
+    full = n > 0 and (not FLT.ProfKeyReady or FLT.ProfKeyReady())
+    for i = 1, n do
+      local name, isHeader, isExpanded, rank, _, _, maxRank = GetSkillLineInfo(i)
+      if isHeader and not isExpanded then full = false end
       local prof = not isHeader and profFromName(name)
       if prof and rank then fn(prof, rank, maxRank) end
     end
@@ -121,10 +127,20 @@ local function eachOwnProfession(fn)
       end
     end
   end
-  return any
+  return any, full
 end
 local function readSkillLines()
-  eachOwnProfession(function(prof, rank, maxRank) local p = profDB(prof); p.skill = rank; p.maxSkill = maxRank end)
+  local seen = {}
+  local _, full = eachOwnProfession(function(prof, rank, maxRank) local p = profDB(prof); p.skill = rank; p.maxSkill = maxRank; seen[prof] = true end)
+  -- an unlearned profession is forgotten (6.2.12-beta16, user 18.11.: "wenn man eine verlernt bleibt die fuer immer im OFA
+  -- gelernt"): only when the skill list is surely complete, and only professions with recipes (the only ones saved here);
+  -- learned again, its recipes come back with the next look into the profession window
+  if full and type(OneForAllCharDB) == "table" and type(OneForAllCharDB.professions) == "table" then
+    local recipes = FLT.PROFESSION_RECIPES or {}
+    for prof in pairs(OneForAllCharDB.professions) do
+      if not seen[prof] and recipes[prof] then OneForAllCharDB.professions[prof] = nil end
+    end
+  end
 end
 FLT._readSkillLines = readSkillLines
 

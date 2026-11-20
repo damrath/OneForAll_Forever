@@ -1261,7 +1261,8 @@ local function createDungeonPanel(parent)
           local hi=makeTexture(row,"HIGHLIGHT",0.30,0.36,0.44,0.10); hi:SetPoint("TOPLEFT",1,-1); hi:SetPoint("BOTTOMRIGHT",-1,1)
           local ic=row:CreateTexture(nil,"ARTWORK"); ic:SetSize(30,30); ic:SetPoint("LEFT",9,0); FLT.SetTex(ic, dungeonItemIcon(rec))
           -- Classic drop chance on the right (Data\DungeonDropChance.lua)
-          local chance=FLT.GetDropChance and FLT.GetDropChance(d.name,isTrash and "Trash" or (boss and boss.name),rec.id)
+          local chance,kills,scaled
+          if FLT.GetDropChance then chance,kills,scaled=FLT.GetDropChance(d.name,isTrash and "Trash" or (boss and boss.name),rec.id) end
           local textW=340 -- same for every row, so the stars line up (user 07.11.)
           local nm=FLT.NewFS(row, nil,"OVERLAY","GameFontNormal"); nm:SetPoint("TOPLEFT",50,-8); nm:SetWidth(textW); nm:SetJustifyH("LEFT"); nm:SetText(FLT.ItemName and FLT.ItemName(rec.id,rec.name) or rec.name); colorDungeonItemText(nm,rec,0.55,0.78,1.00)
           host.items[#host.items+1]={text=nm,icon=ic,rec=rec,r=0.55,g=0.78,b=1.00}
@@ -1272,7 +1273,12 @@ local function createDungeonPanel(parent)
             local chHover=CreateFrame("Frame",nil,row); chHover:SetPoint("RIGHT",-42,0); chHover:SetSize(52,30)
             chHover:SetScript("OnEnter",function(self)
               GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); GameTooltip:AddLine(L["Drop chance"],1,0.82,0.20)
-              GameTooltip:AddLine(L["Classic drop chance - Forever can differ."],1,1,1,true); GameTooltip:Show()
+              -- measured in Forever (Wowhead Forever, 6.2.12-beta10) or the Classic chance
+              if kills and kills>0 then GameTooltip:AddLine(string.format(L["Drop chance in WoW Forever, from %d kills on Wowhead."],kills),1,1,1,true)
+              elseif kills then GameTooltip:AddLine(L["Drop chance in WoW Forever, from Wowhead."],1,1,1,true)
+              else GameTooltip:AddLine(L["Classic drop chance - Forever can differ."],1,1,1,true) end
+              if scaled then GameTooltip:AddLine(L["Wowhead counts more kills than drops for this boss: scaled so that its loot adds up to about one item per kill."],0.7,0.7,0.7,true) end
+              GameTooltip:Show()
             end)
             chHover:SetScript("OnLeave",function() GameTooltip:Hide() end)
           end

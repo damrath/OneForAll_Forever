@@ -71,6 +71,41 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 Changelog (newest first)
 ========================
 
+6.2.12 - Guild Games, Skill-Up buy or craft, hunter pet ranks from the game and many fixes
+==========================================================================================
+Special thanks to Deaders for testing this version, and to Gälda, Ritter Roulade and Deaders for testing the Guild Games.
+- New: Guild Games - Death Roll, High / Low and Tic Tac Toe with your guild members in their own window, open tables to join,
+  optional gold stakes (only written down - you trade the gold yourselves) and your own history. Switch it on in Quality of
+  Life > Guild > "Play with Guildies" (off by default); the "Start" button below it, the info bar element "Guild Games",
+  /ofa play or a key binding open the window. Players who go offline leave the table; a new dealer takes over.
+- Skill-Up guide: new section "Buy ready-made or craft" - bolts, leather, bars and other intermediates bought finished
+  instead of crafted, with the cost difference; a click switches. "Send to Auctionator" also takes the materials under
+  "Farm or find". The "Open guide" button is green.
+- Skill-Up Helper and Profit: new switch "Don't use own materials" (off by default) - nothing from your bags, bank or other
+  characters is used, every material is bought or farmed. Profit says why when nothing is found.
+- Hunter Pets: every rank is read straight from the game (also at login) and recognised from the "You have learned"
+  message, without the Beast Training window; ranks are no longer lost when Beast Training is opened with another pet;
+  right-click a rank to mark it yourself.
+- Quality of Life > World Map: "Low level quests (grey)" (off by default) and "Hide walking routes" of quest givers.
+- Quality of Life > Loot & Vendors: choose the "Junk list key" (Alt + right-click stays the default).
+- Resize Blizzard windows: hold Ctrl and the right mouse button (a plain right-click no longer starts resizing).
+- Info bar: "Remove a character from the gold list" for deleted characters; the gold of your characters is saved as soon
+  as it changes.
+- Gear Planner: no suggestions from raids that are not open in WoW Forever (Ahn'Qiraj, Naxxramas, Blackwing Lair, Molten
+  Core, Zul'Gurub) or crafts that need them; Onyxia's Lair, Hyjal Summit and Barrow Deeps from 9 December 2026. Quest chains
+  (e.g. the Heroism set) only show the steps of your faction and class.
+- Dungeons: every dungeon quest checked against the quest database (quests that do not belong removed, names and levels
+  corrected); Dalaran's open-city quests removed; Stratholme's Dead Man's Plea chain fits your faction and class;
+  Krol'dok Stronghold: Eye of Mugg chain, quest givers, notes and a Key page for the Krol'dok Compound Key.
+- Drop chances: about 250 more, measured in WoW Forever; 77 wrong boss loot entries removed.
+- Map Landmarks: ley lines / Elemental Convergences only at confirmed spots again (far fewer pins).
+- Map: zone transition signs can be clicked again with the mouse while a controller is plugged in.
+- Disenchant value: right under Auctionator's Auction line without moving other tooltip lines (ItemTree), and shown on
+  every item tooltip again.
+- Fixes: the first open of the window and M in a dungeon no longer stop half way in combat; unlearned professions no longer
+  stay learned and the professions overview updates right away; quest marks no longer error with BlizzThreatPlates;
+  the Guild Games "Start" button is greyed out while switched off; quest data updated.
+
 6.2.11 - Quest mark position by dragging, black logo, more Forever quest data and many fixes
 ============================================================================================
 - Quest marks on nameplates: the position drop-down is replaced by a sample nameplate in Quality of Life > Quests -

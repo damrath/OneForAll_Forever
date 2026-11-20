@@ -32,11 +32,11 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
         {
             id = 5214,
             liveXPFallback = 8300,
-            name = "The Great Fras Siabi",
+            name = "The Great Ezra Grimm",
             level = 60,
             requires = 55,
             pickup = "Smokey LaRue, Eastern Plaguelands (70.9, 48.4)",
-            objective = "Find Fras Siabi's smoke shop in Stratholme and recover a box of Siabi's Premium Tobacco. Return to Smokey LaRue when the job is done. ",
+            objective = "Find Ezra Grimm's smoke shop in Stratholme and recover a box of Grimm's Premium Tobacco. Return to Smokey LaRue when the job is done. ",
             turnin = "Smokey LaRue, Eastern Plaguelands",
             rewardItems = {{13171, "Smokey's Lighter", 2}},
         },
@@ -187,18 +187,6 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
             objective = "Find the Black Guard Swordsmith in Stratholme and destroy him. Recover the Insignia of the Black Guard and return to Seril Scourgebane.",
             turnin = "Seril Scourgebane, Winterspring",
             rewardItems = {{12825, "Plans: Blazing Rapier", 2}},
-        },
-        {
-            level = 56,
-            id = 5961,
-            name = "The Champion of the Banshee Queen",
-            requires = 54,
-            faction = "Horde",
-            pickup = "Lady Sylvanas Windrunner, Undercity (58.0, 91.8)",
-            objective = "Speak with Nathanos Blightcaller in the Eastern Plaguelands. He is said to have taken up residence at the Marris Stead. ",
-            turnin = "Nathanos Blightcaller, Eastern Plaguelands",
-            rewardItems = {
-            },
         },
         {
             level = 60,
@@ -465,8 +453,6 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
             description = "Summoned with a brazier from the Tier 0.5 set quests.",
             loot = {
                 {23125, "Chains of the Lich", "Neck", 3},
-                {23124, "Staff of Balzaphon", "Two-Hand, Staff", 3},
-                {23126, "Waistband of Balzaphon", "Waist, Cloth", 3},
             },
         },
         {

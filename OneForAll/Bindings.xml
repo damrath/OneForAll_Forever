@@ -12,5 +12,6 @@
   <Binding name="ONEFORALL_GUIDE" category="BINDING_HEADER_ONEFORALL">OneForAll_Binding("guide")</Binding>
   <Binding name="ONEFORALL_PROFIT" category="BINDING_HEADER_ONEFORALL">OneForAll_Binding("profit")</Binding>
   <Binding name="ONEFORALL_CRAFTLIST" category="BINDING_HEADER_ONEFORALL">OneForAll_Binding("craftlist")</Binding>
+  <Binding name="ONEFORALL_GAMES" category="BINDING_HEADER_ONEFORALL">OneForAll_Binding("games")</Binding>
   <Binding name="ONEFORALL_TOGGLECHAT" category="BINDING_HEADER_ONEFORALL">OneForAll_ToggleChat()</Binding>
 </Bindings>

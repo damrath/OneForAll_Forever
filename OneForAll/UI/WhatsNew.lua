@@ -9,28 +9,31 @@ local makeTexture, makeButton = UI.makeTexture, UI.makeButton
 -- 5.6.3 (user 16.10.): only the Gear Planner. 5.7.0 (user 22.10.): Quality of Life, enchants, set buttons.
 -- 6.0.2 (user 01.11.): World Map, dungeon quests, Gear Planner filters, talent import - not shown automatically.
 
-local NEWS_AUTO = false -- set true (and a new NEWS_ID) for the next release with news
+local NEWS_AUTO = true -- set true (and a new NEWS_ID) for the next release with news
 -- 6.1.6 (agreed with the user 06.11.): more reagent sources and more quest "!" on the world map, not shown automatically.
 -- 6.2.0 (user 07.11.): only the languages, shown automatically once.
 -- 6.2.2 (user 09.11.): the info bar and guild members on the world map, shown automatically once.
 -- 6.2.6 (user 12.11.): Skill-Up Helper, Profit, the new stat weights - shown automatically once.
 -- 6.2.10 (user 16.11.): the new dungeon pictures and the armor / weapon type filter - NOT shown automatically.
-local NEWS_ID = "6.2.10"
+-- 6.2.12 (user 19.11.): Guild Games with special thanks to Gaelda, Ritter Roulade and Deaders, and "Smaller changes"
+-- (Skill-Up changes, low level quests, walking routes) - shown automatically once.
+local NEWS_ID = "6.2.12"
 
 -- images (optional): pictures in a row under the lines, each { tex, shown width, shown height, texcoord right,
 -- texcoord bottom } (made by tools/art/proc_news.py from the user's screenshots in source_images/news)
 -- qol = the Quality of Life group the button opens; shot = a screenshot behind a "Show me" button (user 09.11.):
 -- { texture, shown width, shown height, texcoord right, texcoord bottom } (tools/art/proc_news.py)
 local NEWS = {
-  { icon = "Interface\\Icons\\INV_Misc_Map_01", title = N"New dungeon pictures", tab = "dungeons", button = N"Open Dungeons & Raids",
+  { icon = "Interface\\Icons\\INV_Misc_Bone_HumanSkull_01", title = N"Guild Games", tab = "qol", qol = "guild", button = N"Open Quality of Life",
     lines = {
-      N"Every dungeon and raid shows the game's own loading screen art: in the list, in the header and as the colour behind the boss and quest details.",
-      N"The wings of Scarlet Monastery, Blackrock Spire and Dire Maul have pictures of their own, and so do the raids.",
+      N"Play Death Roll, High / Low and Tic Tac Toe with your guildmates, with or without a gold stake (the stake is only written down - you trade the gold yourselves).",
+      N"Switch it on under Quality of Life > Guild. Open the window there, from the info bar, with /ofa play or with your own key binding.",
+      N"Special thanks to Gälda, Ritter Roulade and Deaders for testing!",
     } },
-  { icon = "Interface\\Icons\\INV_Sword_04", title = N"Armor and weapon type filter", tab = "armory", button = N"Open Gear Planner",
+  { icon = "Interface\\Icons\\INV_Misc_Gear_01", title = N"Smaller changes",
     lines = {
-      N"The filter menu of the Gear Planner has Armor type and Weapon type: cloth, leather, mail or plate, and One-Hand, Two-Hand and Ranged weapons and shields.",
-      N"A click on One-Hand, Two-Hand or Ranged switches the whole group; with the mouse on it you pick single weapon types.",
+      N"Skill-Up Helper: buy bolts, leather and other intermediates ready-made or craft them (with the cost difference), and the switch \"Don't use own materials\".",
+      N"World Map: low level (grey) quests can be shown again, and the walking routes of quest givers can be hidden (Quality of Life > World Map).",
     } },
 }
 

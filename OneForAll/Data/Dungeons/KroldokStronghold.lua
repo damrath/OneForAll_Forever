@@ -11,32 +11,7 @@ FLT.DUNGEON_REGISTRY["Krol'dok Stronghold"] = {
     description = "New Forever dungeon: a Twilight's Hammer ogre fortress on a hill in the Riverglades. The ogres raid nearby settlements and take prisoners. Its loot is still being discovered.",
     icon = "Interface\\Icons\\INV_Misc_Bone_OrcSkull_01",
     quests = {
-        {
-            level = 41,
-            id = 94974,
-            name = "Key Ingredients",
-            requires = 38,
-            faction = "Horde",
-            pickup = "Kreza Darkthorn, Riverglades (59.9, 46.0)",
-            objective = "Bring 4 Thick Leather and 12 Iron Bar to Kreza Darkthorn.",
-            turnin = "Kreza Darkthorn, Riverglades",
-            rewardItems = {
-                {267089, "Krol'dok Compound Key", 1},
-            },
-        },
-        {
-            level = 41,
-            id = 94981,
-            name = "Key Ingredients",
-            requires = 38,
-            faction = "Alliance",
-            pickup = "Alphonse Dumas, Riverglades (64.4, 82.0)",
-            objective = "Bring 4 Thick Leather and 12 Iron Bars to Alphonse Dumas.",
-            turnin = "Alphonse Dumas, Riverglades",
-            rewardItems = {
-                {267089, "Krol'dok Compound Key", 1},
-            },
-        },
+        -- (Key Ingredients 94974 / 94981: on the Key page since 6.2.12-beta25, Data/DungeonKeys.lua)
         {
             level = 42,
             id = 94975,
@@ -56,7 +31,10 @@ FLT.DUNGEON_REGISTRY["Krol'dok Stronghold"] = {
             name = "Twilight Mementos",
             requires = 38,
             faction = "Alliance",
+            pickup = "Sergeant Riftan, Riverglades (30.7, 49.1)",
             objective = "Collect 8 Cultist Bangles from the Twilight's Hammer in Krol'dok Stronghold.",
+            turnin = "Sergeant Riftan, Riverglades",
+            note = "The part inside the dungeon. Its reward comes two steps later with Curios of Curiosity (Lingering Essence, then Curios of Curiosity - both outside).",
             rewardItems = {
             },
         },
@@ -66,10 +44,11 @@ FLT.DUNGEON_REGISTRY["Krol'dok Stronghold"] = {
             name = "Curios of Curiosity",
             requires = 38,
             faction = "Alliance",
-            pickup = "Melanie Sable, Riverglades (66.2, 83.4)",
+            pickup = "Ashe Amberhall, Riverglades (66.8, 81.1)",
             objective = "Bring the Satchel of Mementos to Melanie Sable.",
             turnin = "Melanie Sable, Riverglades",
             rewardChoice = true,
+            note = "No dungeon objective: the last step after Twilight Mementos, done outside in Farholde Keep - it gives that chain's reward.",
             rewardItems = {
                 {279850, "Curio-Adorned Necklace", 3},
             },
@@ -95,7 +74,9 @@ FLT.DUNGEON_REGISTRY["Krol'dok Stronghold"] = {
             name = "Tome of Twilight",
             requires = 39,
             faction = "Alliance",
+            pickup = "Ashe Amberhall, Riverglades (66.8, 81.1)",
             objective = "Kill Nar'gurk within Krol'dok Stronghold and recover any valuable information.",
+            turnin = "Ashe Amberhall, Riverglades",
             rewardChoice = true,
             rewardItems = {
                 {279854, "Twilight Initiate's Belt", 2},
@@ -124,7 +105,9 @@ FLT.DUNGEON_REGISTRY["Krol'dok Stronghold"] = {
             name = "Eye of Mugg",
             requires = 40,
             faction = "Alliance",
+            pickup = "Demar Brant, Riverglades (66.7, 81.0)",
             objective = "Infiltrate Krol'dok Stronghold and return to Commander Brant with proof of their leader's demise.",
+            turnin = "Demar Brant, Riverglades",
             rewardChoice = true,
             rewardItems = {
                 {279852, "Rock on Stick", 3},

@@ -236,8 +236,6 @@ FLT.DUNGEON_REGISTRY["Shadowfang Keep"] = {
             name = "Sever",
             npcID = 14682,
             loot = {
-                {23171, "The Axe of Severing", "Two-Hand, Axe", 3},
-                {23173, "Abomination Skin Leggings", "Legs, Cloth", 3},
             },
         },
     },

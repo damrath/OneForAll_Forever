@@ -256,8 +256,10 @@ local function scanBeastTraining()
   local own
   pcall(function() own = (C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(5149)) or (GetSpellInfo and GetSpellInfo(5149)) end)
   if line and line ~= "Beast Training" and line ~= (BEAST_TRAINING or "") and line ~= own then return end
-  -- the ranks the window lists replace the stored ones, each rank on its own (up to 6.2.10 the pet's spellbook could store
-  -- a rank the hunter had not learned yet, and a high rank counted for all lower ones)
+  -- each rank on its own. 6.2.12-beta23 (Discord Oleum 18.11.: "learned all the skills up to Rank 4, but the addon still shows
+  -- that I only have Bite Rank 3"): the window only lists what fits the CURRENT pet (family, level, what it knows), so its
+  -- ranks are ADDED to the stored ones - 6.2.11 replaced them and lost the rest. Only an old number (up to 6.2.10, from the
+  -- pet's spellbook - maybe never learned) is still replaced.
   local changed, t, seen = false, knownTable(), {}
   for i = 1, GetNumCrafts() or 0 do
     local name, sub, kind = GetCraftInfo(i)
@@ -267,10 +269,11 @@ local function scanBeastTraining()
     end
   end
   for en, set in pairs(seen) do
-    local old, same = rankSet(t and t[en]), true
-    for r in pairs(set) do if not (old and old[r]) then same = false end end
-    for r in pairs(old or {}) do if not set[r] then same = false end end
-    if t and (not same or type(t[en]) ~= "table") then t[en] = set; changed = changed or not same end
+    if t then
+      local old = type(t[en]) == "table" and t[en] or nil
+      if not old then t[en] = set; changed = true
+      else for r in pairs(set) do if not old[r] then old[r] = true; changed = true end end end
+    end
   end
   if knownTable() then OneForAllCharDB.petAbilitiesScanned = true end
   if petUI and petUI.refreshKnown then petUI.refreshKnown() end
@@ -308,6 +311,105 @@ local function petSpellName(i)
     local ok, name, sub = pcall(GetSpellName, i, BOOKTYPE_PET or "pet")
     if ok and name then return name, sub end
   end
+end
+
+-- a rank learned right now (6.2.12-beta23, Discord Xynum / Kiske 19.11.: tamed, used, but not shown): the game's message "You have
+-- learned a new ability: Swipe (Rank 3)." (and the pet's "has learned" when it is taught) - no window needed. Patterns from the
+-- client's own texts, so every language works; only names of pet abilities count.
+-- beta26 (tester Deaders 19.11.: "[Demoralizing Screech]" not registered at all - the message has no rank and the client gives
+-- no rank subtext): the Beast Training spell IDs of every rank (Data/HunterPetSpells.lua, from the client) tell ability and rank
+local function addKnownRank(en, r)
+  local t = knownTable()
+  if not (t and en and r and PET_SPELL[en]) then return false end
+  local set = type(t[en]) == "table" and t[en] or {}
+  if set[r] then return false end
+  set[r] = true; t[en] = set
+  return true
+end
+local function notePetSpell(sid)
+  local e = sid and FLT.PET_TEACH_SPELLS and FLT.PET_TEACH_SPELLS[sid]
+  if not e then return false end
+  if addKnownRank(e[1], e[2]) and petUI and petUI.refreshKnown then petUI.refreshKnown() end
+  return true
+end
+-- every rank the hunter knows, straight from the game (IsPlayerSpell on those IDs) - only ever adds; ignored when the answer
+-- is "yes" for nearly everything (then the function does not know these spells)
+local function scanKnownSpells()
+  local T = FLT.PET_TEACH_SPELLS
+  if not (T and IsPlayerSpell) then return end
+  local hits, all = {}, 0
+  for sid, e in pairs(T) do
+    all = all + 1
+    local ok, known = pcall(IsPlayerSpell, sid)
+    if ok and known and not FLT.IsSecret(known) then hits[#hits + 1] = e end
+  end
+  if all == 0 or #hits > all * 0.9 then return end
+  local changed = false
+  for _, e in ipairs(hits) do if addKnownRank(e[1], e[2]) then changed = true end end
+  if changed and petUI and petUI.refreshKnown then petUI.refreshKnown() end
+end
+FLT._petScanKnownSpells = scanKnownSpells -- tests
+local scanPending
+local function scanKnownSoon()
+  if scanPending or not C_Timer then return end
+  scanPending = true
+  C_Timer.After(1, function() scanPending = nil; scanKnownSpells() end)
+end
+local learnPatterns
+local function noteLearnMessage(msg)
+  if type(msg) ~= "string" or FLT.IsSecret(msg) then return end
+  if not learnPatterns then
+    learnPatterns = {}
+    for _, g in ipairs({ "ERR_LEARN_ABILITY_S", "ERR_LEARN_SPELL_S", "ERR_PET_LEARN_ABILITY_S", "ERR_PET_LEARN_SPELL_S" }) do
+      local f = _G[g]
+      if type(f) == "string" and f:find("%s", 1, true) then
+        learnPatterns[#learnPatterns + 1] = "^" .. f:gsub("[%(%)%.%[%]%*%+%-%?%^%$]", "%%%0"):gsub("%%s", "(.+)") .. "$"
+      end
+    end
+  end
+  for _, pat in ipairs(learnPatterns) do
+    local what = msg:match(pat)
+    if what then
+      local sid = tonumber(what:match("|Hspell:(%d+)"))
+      if notePetSpell(sid) then return end
+      what = what:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|H[^|]*|h", ""):gsub("|h", "")
+      local name, sub = what:match("^%[?(.-)%]?%s*%((.-)%)%]?$")
+      name = name or what:match("^%[?(.-)%]?$")
+      local en = name and abilityEN(name)
+      local t = knownTable()
+      if en and PET_SPELL[en] and t then
+        -- beta25 (tester Deaders 19.11.: the Forever client says "You have learned a new spell: [Charge]." - no rank, the old
+        -- code took rank 1 although a Goretusk teaches rank 2): the rank from the text, else from the linked spell's subtext
+        -- ("Rank 2"), else rank 1 only for an ability with one rank - otherwise nothing (Beast Training reads it later)
+        local r = sub and sub:match("%d") and rankNumber(sub)
+        if not r and sid then
+          local st = C_Spell and C_Spell.GetSpellSubtext and C_Spell.GetSpellSubtext(sid)
+          if not st and GetSpellSubtext then st = GetSpellSubtext(sid) end
+          if type(st) == "string" and not FLT.IsSecret(st) and st:match("%d") then r = rankNumber(st) end
+        end
+        if not r then
+          local n = 0
+          for _, a in ipairs(FLT.PET_ABILITIES or {}) do if a.name == en then n = #(a.ranks or {}) end end
+          if n <= 1 then r = 1 end
+        end
+        if not r then return end
+        local set = type(t[en]) == "table" and t[en] or {}
+        if not set[r] then set[r] = true; t[en] = set; if petUI and petUI.refreshKnown then petUI.refreshKnown() end end
+      end
+      return
+    end
+  end
+end
+FLT._petLearnMessage = noteLearnMessage -- tests
+-- right-click on a rank in the Hunter Pets tab (6.2.12-beta23): mark it learned / not learned yourself (ranks learned before
+-- 6.2.11 that Beast Training never lists for a higher pet)
+function FLT:TogglePetRank(name, rank)
+  local t = knownTable()
+  if not (t and name and rank) then return end
+  local set = rankSet(t[name]) or {}
+  if set[rank] then set[rank] = nil else set[rank] = true end
+  t[name] = next(set) and set or nil
+  if petUI and petUI.refreshKnown then petUI.refreshKnown() end
 end
 
 -- The pet's spellbook is not read for known ranks any more (6.2.11, Discord jontasson 16.11.): a freshly tamed pet lists its abilities
@@ -542,7 +644,15 @@ do
       local _, cls = UnitClass("player")
       if cls ~= "HUNTER" then self:UnregisterAllEvents(); return end
       pcall(self.RegisterUnitEvent or self.RegisterEvent, self, "UNIT_SPELLCAST_START", "player")
-      for _, e in ipairs({"CRAFT_SHOW", "CRAFT_UPDATE", "UNIT_PET", "PET_STABLE_SHOW", "PET_STABLE_UPDATE", "NAME_PLATE_UNIT_ADDED", "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT"}) do pcall(self.RegisterEvent, self, e) end
+      for _, e in ipairs({"CRAFT_SHOW", "CRAFT_UPDATE", "UNIT_PET", "PET_STABLE_SHOW", "PET_STABLE_UPDATE", "NAME_PLATE_UNIT_ADDED", "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "CHAT_MSG_SYSTEM",
+        "LEARNED_SPELL_IN_TAB", "LEARNED_SPELL_IN_SKILL_LINE", "SPELLS_CHANGED"}) do pcall(self.RegisterEvent, self, e) end
+      if C_Timer then C_Timer.After(3, scanKnownSpells) end -- beta26: every known rank at login
+    elseif event == "LEARNED_SPELL_IN_TAB" or event == "LEARNED_SPELL_IN_SKILL_LINE" then
+      if not notePetSpell(arg1) then scanKnownSoon() end
+    elseif event == "SPELLS_CHANGED" then -- (debounced: one scan a second at most)
+      scanKnownSoon()
+    elseif event == "CHAT_MSG_SYSTEM" then -- (hunters only; a short match per system message)
+      noteLearnMessage(arg1)
     elseif event == "CRAFT_SHOW" or event == "CRAFT_UPDATE" then
       scanBeastTraining()
     elseif event == "PET_STABLE_SHOW" or event == "PET_STABLE_UPDATE" then
@@ -976,6 +1086,14 @@ local function createPetsPanel(parent)
       local alertCB = FLT.SkinBlizz(CreateFrame("CheckButton", nil, child, "UICheckButtonTemplate"))
       alertCB:SetSize(22, 22); alertCB:SetPoint("TOPRIGHT", -2, -4)
       local alertLbl = text(child, "GameFontHighlightSmall"); alertLbl:SetPoint("RIGHT", alertCB, "LEFT", -2, 0); alertLbl:SetText(L["Alert for this ability"])
+      -- beta26 (tester Deaders 19.11.: "Demoralizing Screech" ran under "Alert for this ability"): a long name gets a smaller
+      -- font (down to 16), then it is cut at the label
+      do
+        local room = W - 100 - (alertLbl:GetStringWidth() or 110) - 34
+        local font, size, flags = t:GetFont()
+        while font and size and size > 16 and (t:GetStringWidth() or 0) > room do size = size - 1; t:SetFont(font, size, flags) end
+        if (t:GetStringWidth() or 0) > room then t:SetWidth(room); t:SetWordWrap(false) end
+      end
       alertCB:SetScript("OnClick", function(self) FLT:SetPetAlertIgnored(a.name, not self:GetChecked()) end)
       alertCB:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT"); GameTooltip:AddLine(L["Pet ability alert"], 1, 0.82, 0)
@@ -1011,7 +1129,7 @@ local function createPetsPanel(parent)
       for _, r in ipairs(a.ranks or {}) do if #(r.learnFrom or {}) > 0 then noneKnown = false end end
       if noneKnown then addIntro(L["New in WoW Forever: no beast that teaches this ability is known yet."], 0.65, 0.85, 1) end
       local scanHint = text(child, "GameFontDisableSmall", W - 10)
-      scanHint:SetText(L["Green = rank you already know. Open Beast Training once so OneForAll can read your known ranks."])
+      scanHint:SetText(L["Green = rank you know. A rank counts once the game says \"You have learned a new ability\" - your pet has to use it first, taming alone is not enough. Opening Beast Training (spellbook) reads your ranks too. Right-click a rank to mark it yourself."])
 
       -- One card per rank: header line, effect, and the teaching beasts (fold out).
       for ri, r in ipairs(a.ranks or {}) do
@@ -1043,7 +1161,13 @@ local function createPetsPanel(parent)
           local d = text(body, "GameFontDisableSmall", W - 40); d:SetPoint("TOPLEFT", 32, by); d:SetText(L["No beast known that teaches this rank."]); by = by - 18
         end
         body.fullH, body.descH = -by + 6, -beastsTop + 6
-        hdr:SetScript("OnClick", function()
+        hdr:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        hdr:SetScript("OnEnter", function(self)
+          GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L["Right-click: mark as learned or not learned"], 0.85, 0.85, 0.85); GameTooltip:Show()
+        end)
+        hdr:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        hdr:SetScript("OnClick", function(_, button)
+          if button == "RightButton" then FLT:TogglePetRank(a.name, r.rank or ri); return end
           if not hasBeasts then return end
           open[ri] = not open[ri]
           child.relayout()
@@ -1076,8 +1200,7 @@ local function createPetsPanel(parent)
 
       child.refresh = function()
         alertCB:SetChecked(not FLT:IsPetAlertIgnored(a.name))
-        local scanned = type(OneForAllCharDB) == "table" and OneForAllCharDB.petAbilitiesScanned
-        if scanned then scanHint:Hide() else scanHint:Show() end
+        if a.source == "trainer" then scanHint:Hide() else scanHint:Show() end
         for _, bl in ipairs(blocks) do
           local learned = FLT:HasPetRank(a.name, bl.rank.rank or 1)
           bl.paw:ClearAllPoints()

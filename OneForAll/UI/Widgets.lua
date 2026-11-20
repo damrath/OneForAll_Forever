@@ -389,6 +389,7 @@ local function Nine(owner, anchor, tex, c, out, layer, sub)
   function o:SetShown(v) for _, t in ipairs(self.pieces) do t:SetShown(v) end end
   function o:SetAlpha(a) for _, t in ipairs(self.pieces) do t:SetAlpha(a) end end
   function o:SetDesaturated(v) for _, t in ipairs(self.pieces) do FLT.Desat(t, v) end end
+  function o:SetVertexColor(r, g, b) for _, t in ipairs(self.pieces) do t:SetVertexColor(r, g, b) end end
   return o
 end
 
@@ -410,6 +411,11 @@ local function Plate(b, h)
   end
   function p:SetEnabledLook(on)
     normal:SetDesaturated(not on); normal:SetAlpha(on and 1 or 0.6); hover:SetShown(on and true or false)
+  end
+  -- a coloured plate (6.2.12-beta17, user 18.11.: "Open guide ... den Button gruen hinterlegen"): nil = the normal one
+  function p:SetTint(r, g, b)
+    r, g, b = r or 1, g or 1, b or 1
+    normal:SetVertexColor(r, g, b); active:SetVertexColor(r, g, b); hover:SetVertexColor(r, g, b)
   end
   return p
 end
@@ -473,10 +479,16 @@ local function GoldButton(parent, text, w, h, icon, fontSize, plain)
   end
   function b:SetLook(enabled)
     plate:SetEnabledLook(enabled)
-    if enabled then label:SetTextColor(FLT.SkinC(0.95, 0.82, 0.50)) else label:SetTextColor(FLT.SkinC(0.5, 0.5, 0.5)) end
+    if b.wantGreen then b:SetGreen(enabled) end -- (first: SetGreen(false) sets the gold text, grey comes after it)
+    if enabled then if not b.green then label:SetTextColor(FLT.SkinC(0.95, 0.82, 0.50)) end else label:SetTextColor(FLT.SkinC(0.5, 0.5, 0.5)) end
     if b.icon then FLT.Desat(b.icon, not enabled); b.icon:SetAlpha(enabled and 1 or 0.5) end
   end
   function b:SetLabel(t) label:SetText(t); fit(); place(0, 0) end
+  -- b:SetGreen(on): a green plate for the one button that should catch the eye (6.2.12-beta17); off while disabled
+  function b:SetGreen(on)
+    b.green = on and true or nil
+    if on then plate:SetTint(0.45, 1, 0.5); label:SetTextColor(0.85, 1, 0.85) else plate:SetTint(); label:SetTextColor(FLT.SkinC(0.95, 0.82, 0.50)) end
+  end
   -- the gold chevron of the "< Dungeons" button as a page arrow (Welcome setup, user 31.10.): dir "prev" / "next" / nil
   function b:SetArrow(dir)
     if not b.icon then b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetSize(h - 10, h - 10); FLT.SetTex(b.icon, ASSET_ROOT .. "icon_back") end

@@ -165,52 +165,6 @@ FLT.DUNGEON_REGISTRY["City of Dalaran"] = {
             rewardItems = {
             },
         },
-        {
-            level = 60,
-            id = 96603,
-            name = "Unstable Magic",
-            requires = 48,
-            faction = "Alliance",
-            pickup = "Archmage Celindra, Alterac Mountains (14.2, 60.0)",
-            objective = "Bring 10 Motes of Unstable Magic to Archmage Celindra in Dalaran.",
-            turnin = "Archmage Celindra, Alterac Mountains",
-            rewardItems = {
-            },
-        },
-        {
-            level = 52,
-            id = 96609,
-            name = "A Taste of Home",
-            requires = 44,
-            faction = "Alliance",
-            pickup = "Arille Azuregaze, Alterac Mountains (18.5, 65.7)",
-            objective = "Bring 10 bottles of Silvermoon Shimmerwine to Arille Azuregaze in Dalaran city.",
-            turnin = "Arille Azuregaze, Alterac Mountains",
-            rewardChoice = true,
-            rewardItems = {
-                {276903, "Shimmerwine Shanker", 2},
-                {276904, "Shimmerwine Spirits", 2},
-            },
-            rewardAlso = {
-                {276896, "Everlasting Silvermoon Shimmerwine", 3},
-            },
-        },
-        {
-            level = 54,
-            id = 96812,
-            name = "Thicker Than Water",
-            requires = 45,
-            faction = "Alliance",
-            pickup = "Sergeant Danneth, Blasted Lands (65.2, 15.3)",
-            objective = "Return to Orphan Matron Aria in Dalaran and inform her of Sergeant Danneth's intentions to take in Randal.",
-            turnin = "Orphan Matron Aria, Alterac Mountains",
-            rewardChoice = true,
-            rewardItems = {
-                {276900, "Denric's Dog Tags", 2},
-                {276901, "Uncle's Heroism", 2},
-                {276902, "Youngster's First Bow", 2},
-            },
-        },
     },
     bosses = {
         {

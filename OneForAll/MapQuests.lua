@@ -154,8 +154,10 @@ local function readMe()
   me.grey = me.level - range
 end
 
-local function available(q)
-  if q.req > me.level or q.lvl < me.grey or (q.max > 0 and me.level > q.max) then return false end
+-- grey: also the quests that are grey for you (6.2.12-beta15, user 18.11.: "low level quests (grau) wieder in der map
+-- anzuzeigen. optional als schalter (standard: Aus)" - qol.mapQuestsGrey, only for the map pins)
+local function available(q, grey)
+  if q.req > me.level or (q.lvl < me.grey and not grey) or (q.max > 0 and me.level > q.max) then return false end
   -- far above your level (6.1.1, user 04.11.: level 60 book, Legacy and event quests that anyone may take showed for
   -- a level 9 character): only up to 10 levels above
   if q.lvl > me.level + 10 then return false end
@@ -252,7 +254,8 @@ local function hoverOnly(f) f:EnableMouse(false) end
 local spots = {} -- reused per refresh: key "x,y" -> { x, y, name, avail = {}, turnin = {} }
 local spotList = {}
 
--- the route of a walking quest giver, always shown with its icon (user 01.11., like Questie)
+-- the route of a walking quest giver, shown with its icon (user 01.11., like Questie); qol.mapQuestNoRoutes hides them
+-- (6.2.12-beta5, Discord #general Baezil 18.11.: "all 3 alliance cities are covered in squiggles")
 local routeFrame, lines, nLines = nil, {}, 0
 -- invisible hover spots along the routes (6.1.1, user 04.11.: like Questie, the route shows its giver's tooltip and
 -- lights up on mouseover); pooled like the lines
@@ -454,9 +457,10 @@ function MQ.Refresh()
       -- zone coordinates (0-100) -> this map's; walking routes only on the zone map itself
       local function at(x, y) return z[2] * 100 + x * z[4], z[3] * 100 + y * z[5] end
       local givers, turnins = Q("mapQuestGivers") ~= false, Q("mapQuestTurnins") ~= false -- 6.1.9: each on its own
+      local grey = Q("mapQuestsGrey") and true or false
       for _, g in ipairs(givers and d.starts or {}) do
         for _, q in ipairs(g.quests) do
-          if available(q) then local x, y = at(g.x, g.y); local s = spot(x, y, g.name, whole and g.route or nil); s.avail[#s.avail + 1] = q end
+          if available(q, grey) then local x, y = at(g.x, g.y); local s = spot(x, y, g.name, whole and g.route or nil); s.avail[#s.avail + 1] = q end
         end
       end
       for _, e in ipairs(turnins and d.ends or {}) do
@@ -471,6 +475,11 @@ function MQ.Refresh()
     local pin = acquire(child)
     pin.spot = s
     setIcon(pin.tex, #s.turnin > 0)
+    -- only grey quests there: a grey "!" (like the game's own low level quest marks)
+    local allGrey = #s.turnin == 0 and #s.avail > 0
+    for _, q in ipairs(s.avail) do if q.lvl >= me.grey then allGrey = false; break end end
+    if pin.tex.SetDesaturated then pin.tex:SetDesaturated(allGrey) end
+    pin.tex:SetVertexColor(allGrey and 0.75 or 1, allGrey and 0.75 or 1, allGrey and 0.75 or 1)
     local dq, dqid
     for _, q in ipairs(s.avail) do if not dq then dq = dungeonOf(q.id); dqid = dq and q.id end end
     for _, id in ipairs(s.turnin) do if not dq then dq = dungeonOf(id); dqid = dq and id end end
@@ -482,7 +491,7 @@ function MQ.Refresh()
     pin:ClearAllPoints()
     pin:SetPoint("CENTER", child, "TOPLEFT", (s.x / 100) * w / scale, -(s.y / 100) * h / scale)
     pin:Show()
-    if s.route then showRoute(s.route, child, w, h, scale, level, s) end
+    if s.route and not Q("mapQuestNoRoutes") then showRoute(s.route, child, w, h, scale, level, s) end -- 6.2.12-beta5: can be hidden
   end
   setWatch(used > 0)
   shiftPins()
@@ -590,7 +599,8 @@ function MQ.AddUnitLines(tt, unit)
 end
 
 MQ.QuestieLoaded = questieLoaded
-MQ._mapData, MQ._available, MQ._pool, MQ._xpRange, MQ._dungeonOf, MQ._openDQ = mapData, available, pool, xpRange, dungeonOf, openDungeonQuest -- for tools/tests/t_mapquests.lua
+MQ._mapData, MQ._available, MQ._pool, MQ._xpRange, MQ._dungeonOf, MQ._openDQ = mapData, available, pool, xpRange, dungeonOf, openDungeonQuest
+MQ._routeLines = function() return nLines end -- 6.2.12-beta5 test: route lines drawn -- for tools/tests/t_mapquests.lua
 function MQ._me(t) for k, v in pairs(t) do me[k] = v end wipe(bagHas) end
 
 local boot = CreateFrame("Frame")
@@ -598,6 +608,8 @@ boot:RegisterEvent("PLAYER_LOGIN")
 boot:SetScript("OnEvent", function(self)
   self:UnregisterAllEvents()
   if FLT.QoL and FLT.QoL.On then FLT.QoL.On("mapQuests", MQ.Apply); FLT.QoL.On("mapQuestsContinent", MQ.Refresh)
-    FLT.QoL.On("mapQuestGivers", MQ.Refresh); FLT.QoL.On("mapQuestTurnins", MQ.Refresh) end
+    FLT.QoL.On("mapQuestGivers", MQ.Refresh); FLT.QoL.On("mapQuestTurnins", MQ.Refresh)
+    FLT.QoL.On("mapQuestNoRoutes", MQ.Refresh)
+    FLT.QoL.On("mapQuestsGrey", MQ.Refresh) end
   if Q("mapQuests") then MQ.Apply() end
 end)

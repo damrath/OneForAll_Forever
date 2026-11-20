@@ -25,6 +25,10 @@ local NEW_TAGS = { -- the 6.1.x marks removed when 6.2.0 started (rule: marks st
   tipMouse = "6.2.7",
   bookAlertNoFlying = "6.2.7",
   logoSize = "6.2.11",
+  junkKey = "6.2.12",
+  guildGames = "6.2.12",
+  mapQuestNoRoutes = "6.2.12",
+  mapQuestsGrey = "6.2.12",
 }
 -- placed left of the checkbox (or of the label when there is none), user 16.10.
 local function newTag(parent, anchor, key, dx)
@@ -477,7 +481,7 @@ local function createQoLPanel(parent)
     button(r, N"Reset", 60, N"Moved Blizzard windows go back to their default place.", function() Q.ResetWindowPositions() end)
   end
   do
-    local r = check(g, N"Resize Blizzard windows", N"Drag a window with the right mouse button to change its size.", N"Hold the right mouse button on a window like the character or quest log window and drag: right or down makes it larger, left or up smaller (50 - 150 %). The size shows at the cursor and is remembered.", "resizeWindows")
+    local r = check(g, N"Resize Blizzard windows", N"Hold Ctrl and drag a window with the right mouse button to change its size.", N"Hold Ctrl and the right mouse button on a window like the character or quest log window and drag: right or down makes it larger, left or up smaller (50 - 150 %). The size shows at the cursor and is remembered.", "resizeWindows")
     button(r, N"Reset", 60, N"Resized Blizzard windows go back to their normal size.", function() Q.ResetWindowSizes() end)
   end
   g = group(c, N"Minimap")
@@ -567,13 +571,15 @@ local function createQoLPanel(parent)
   check(g, N"Quicker loot", N"Takes everything at once when the game auto loots.", N"Instead of item by item.", "quickLoot")
   g = group(c, N"Merchants")
   check(g, N"Auto repair", N"Repairs all gear at merchants that can repair.", nil, "autoRepair")
-  check(g, N"Sell junk", N"Sells all grey items when you open a merchant.", N"Also the items on your own junk list: Alt+right-click an item in your bags to put it on the list or take it off. Hold Shift at the merchant to skip.", "sellJunk")
+  check(g, N"Sell junk", N"Sells all grey items when you open a merchant.", N"Also the items on your own junk list: click an item in your bags with the junk list key (default Alt + right-click) to put it on the list or take it off. Hold Shift at the merchant to skip.", "sellJunk")
+  -- the click for the junk list (6.2.12-beta3, user 18.11.: other addons use Alt + right-click too)
+  choice(g, N"Junk list key", N"The click that puts an item in your bags on the junk list.", N"Choose another one when an addon of yours uses Alt + right-click on bag items. Clicking again takes the item off the list.", "junkKey", Q.JUNK_KEY_OPTIONS, nil, 24)
   do -- own junk list (5.7.3, GitHub #22)
-    local r = row(g, N"Junk list", N"Items you added with Alt+right-click in your bags.", N"This character's list. Sell junk sells these items too.", 24)
+    local r = row(g, N"Junk list", N"Items you added with the junk list key in your bags.", N"This character's list. Sell junk sells these items too.", 24)
     local b = dropButton(r, 110)
     local function show() local n = #Q.GetJunkItems(); b:SetLabel(n == 1 and L["1 item"] or string.format(L["%d items"], n)) end
     local JUNK = { get = Q.GetJunkItems, remove = Q.RemoveJunk, clear = Q.ClearJunk, title = N"Junk list",
-      empty = N"Nothing on the list. Alt+right-click an item in your bags to add it - Sell junk then sells it at merchants.",
+      empty = N"Nothing on the list. Click an item in your bags with the junk list key (default Alt + right-click) to add it - Sell junk then sells it at merchants.",
       removeTip = N"Sell junk will not sell this item any more.", confirm = N"Remove all items from your junk list?" }
     b:SetScript("OnClick", function(self) showNeverList(self, show, JUNK) end)
     refreshers[#refreshers + 1] = show
@@ -746,6 +752,17 @@ local function createQoLPanel(parent)
   c = category("guild", N"Guild", "Interface\\Icons\\INV_Shirt_GuildTabard_01", N"What you share with your guild members who also use OneForAll.")
   g = group(c, N"World Map")
   check(g, N"Guild members on the map", N"Guild members with OneForAll as dots in their class colour - and you on their map.", N"Only guild members who also use OneForAll and have this switched on. Switched off, your position is not sent any more and you see nobody else either. Inside a dungeon or raid only which one is sent: a green guild flag on its entrance, the names in its tooltip. Members in your group are left out, the game shows them already. Also on the continent map, a little smaller. Guild members who share their position with the addon OpenMap are shown too.", "guildMap")
+  g = group(c, N"Guild Games")
+  local ggRow = check(g, N"Play with Guildies", N"Small games with your guild members in their own window: Death Roll, High / Low, Tic Tac Toe.", N"Only guild members who also have this switched on can invite you or be invited. Open the window with /ofa play, the info bar element \"Guild Games\" or a key binding. Invites never pop up in combat or in a dungeon, raid or battleground. Gold stakes are only written down - you trade the gold yourselves.", "guildGames")
+  do -- 6.2.12-beta4 (user 18.11.): a button below the switch that opens the games window, and where else it opens
+    local r = row(g, N"Games window", N"Also with the info bar element \"Guild Games\", /ofa play or your own key in the game's Options > Keybindings (OneForAll).", nil, 24)
+    r:SetHeight(46); r.desc:SetWordWrap(true); r.desc:SetWidth(ROW_W - 84 - 150)
+    local b = button(r, N"Start", 90, nil, function() if FLT.GuildGames then FLT.GuildGames.Open() end end)
+    -- (SetLook too: SetEnabled alone left it looking active - tester Deaders 19.11.: "not greyed out", beta25)
+    local function upd() local on = Q.Get("guildGames") and true or false; b:SetEnabled(on); if b.SetLook then b:SetLook(on) end end
+    refreshers[#refreshers + 1] = upd
+    ggRow.cb:HookScript("OnClick", upd) -- greyed out while the switch is off
+  end
 
   -- WORLD MAP
   c = category("map", N"World Map", "Interface\\Icons\\INV_Misc_Map_01", N"Icons on the world map.")
@@ -763,6 +780,8 @@ local function createQoLPanel(parent)
   check2(g, { N"Quest givers (!)", N"A yellow ! where you can take a quest.", nil, "mapQuestGivers" },
     { N"Turn-ins (?)", N"A yellow ? where you turn in a finished quest.", N"Switch it off when the game's own ? already shows on the map.", "mapQuestTurnins" }, 24)
   check(g, N"Also on the continent map", N"The quest icons also when you zoom out of a zone.", N"All zones of the continent at once, a little smaller, without the routes of walking quest givers. Needs \"Quest icons\".", "mapQuestsContinent", 24)
+  check(g, N"Low level quests (grey)", N"Also a grey ! for quests that are grey for you.", N"They give little or no experience. Needs \"Quest icons\".", "mapQuestsGrey", 24)
+  check(g, N"Hide walking routes", N"No yellow lines where quest givers walk around.", N"The icon of a walking quest giver stays; it shows where the giver is in the quest data. Needs \"Quest icons\".", "mapQuestNoRoutes", 24)
   g = group(c, N"Map button")
   check(g, N"OneForAll button on the map", N"A logo at the top left of the world map with all these switches.", N"Click it for a quick list: Map Landmarks and its parts, Remove Fog and the dungeon map. It sits below other addons' buttons there (RareScanner ...).", "mapButton")
   g = group(c, N"Exploration")

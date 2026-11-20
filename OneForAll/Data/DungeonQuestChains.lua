@@ -462,7 +462,7 @@ FLT.QUEST_PREREQ_CHAINS = {
     { id = 7461, name = "The Madness Within" },
   },
   [7508] = {
-    { id = 7507, name = "Foror's Compendium" },
+    { id = 7507, name = "Nostro's Compendium" },
   },
   [5519] = {
     { id = 5518, name = "The Gordok Ogre Suit" },
@@ -610,11 +610,6 @@ FLT.QUEST_PREREQ_CHAINS = {
   [7485] = { -- Libram of Protection (Dire Maul: North)
     { id = 7481, name = "Elven Legends", optional = true },
   },
-  [5247] = { -- Fragments of the Past (Dire Maul: West)
-    { id = 5244, name = "The Ruins of Kel'Theril" },
-    { id = 5245, name = "Troubled Spirits of Kel'Theril" },
-    { id = 5246, name = "Fragments of the Past" },
-  },
   [7631] = { -- Dreadsteed of Xoroth (Dire Maul: West)
     { id = 7623, name = "Lord Banehollow" },
     { id = 7624, name = "Ulathek the Traitor" },
@@ -719,12 +714,6 @@ FLT.QUEST_PREREQ_CHAINS = {
   [92459] = { -- Friend of the Kirin Tor (City of Dalaran)
     { id = 92432, name = "An Alarming Request" },
     { id = 92458, name = "Heart of Disruption", optional = true },
-  },
-  [96812] = { -- Thicker Than Water (City of Dalaran)
-    { id = 96797, name = "The Orphan" },
-    { id = 96798, name = "Into the Darkness" },
-    { id = 96811, name = "Escaping the Shadows" },
-    { id = 96799, name = "A Heavy Responsibility" },
   },
   [92753] = { -- Destruction in Deadmines (The Deadmines)
     { id = 92742, name = "Testing the Wells" },
@@ -853,6 +842,16 @@ FLT.QUEST_PREREQ_CHAINS = {
     { id = 94748, name = "Break Their Chains" },
     { id = 94768, name = "Bring Me His Head" },
     { id = 95278, name = "It Is Time, Brother..." },
+  },
+  -- 6.2.12-beta24 (Discord fallenactual 19.11.: "The Eye of Mugg quest says ... no prerequisite quests but it does have one which is
+  -- 'bring me his head'"; method.gg: it starts with the same Farholde Keep quests): QuestieDB has no prerequisite for 94982 - the
+  -- Alliance chain up to Bring Me His Head, like the Horde one (94968)
+  [94982] = { -- Eye of Mugg (Alliance, Krol'dok Stronghold)
+    { id = 94879, name = "Scraps of Knowledge" },
+    { id = 94886, name = "The Western Front" },
+    { id = 94888, name = "No Soldier Left Behind" },
+    { id = 94889, name = "Carving a Path" },
+    { id = 94890, name = "Bring Me His Head" },
   },
   [94984] = { -- Tome of Twilight (Krol'dok Stronghold)
     { id = 94881, name = "Curious Trinkets" },
@@ -1225,9 +1224,6 @@ FLT.QUEST_PREREQ_DETAILS = {
   [8929] = { level = 60, requires = 58, objective = "Use the Extra-Dimensional Ghost Revealer at the entrance to Stratholme and speak with the ghost of Anthion Harmon.", pickup = "Deliana, Ironforge (43.5, 52.6)", turnin = "Anthion Harmon, Eastern Plaguelands (26.1, 11.3)" },
   -- steps of the chains added 6.2.4 (tools/dungeon-gen/add_quests.lua --details)
   [7481] = { level = 60, requires = 54, objective = "Search Dire Maul for Telmius Dreamseeker. Report back to Sage Korolusk at Camp Mojache with whatever information that you may find.", pickup = "Sage Korolusk, Feralas (74.4, 44.0)", turnin = "Sage Korolusk, Feralas" },
-  [5244] = { level = 56, requires = 53, objective = "Speak with Jaron Stoneshaper in Starfall Village.", pickup = "Wynd Nightchaser, Winterspring (52.0, 30.4)", turnin = "Jaron Stoneshaper, Winterspring" },
-  [5245] = { level = 56, requires = 53, objective = "Use Jaron's Pick to find the four Highborne Relic Fragments. Bring them to Aurora Skycaller in Eastern Plaguelands.", pickup = "Jaron Stoneshaper, Winterspring (52.1, 30.4)", turnin = "Aurora Skycaller, Eastern Plaguelands" },
-  [5246] = { level = 56, requires = 53, objective = "Find the Sacred Highborne Writings in the Temple of Zin-Malor in Azshara, and bring them to Aurora Skycaller near the Northpass Tower in Eastern Plaguelands.", pickup = "Aurora Skycaller, Eastern Plaguelands (46.5, 16.0)", turnin = "Aurora Skycaller, Eastern Plaguelands" },
   [7629] = { level = 60, requires = 60, objective = "Bring the Imp in a Jar to the alchemy lab in the Scholomance. After the parchment is created, return the jar to Gorzeeki Wildeyes.", pickup = "Gorzeeki Wildeyes, Burning Steppes (12.4, 31.6)", turnin = "Gorzeeki Wildeyes, Burning Steppes" },
   [7626] = { level = 60, requires = 60, objective = "Bring 10 Elixirs of Shadow Power to Gorzeeki Wildeyes in the Burning Steppes.", pickup = "Mor'zul Bloodbringer, Burning Steppes (12.7, 31.6)", turnin = "Gorzeeki Wildeyes, Burning Steppes" },
   [7627] = { level = 60, requires = 60, objective = "Bring 6 Large Brilliant Shards and 25 Dark Iron Ore to Gorzeeki in the Burning Steppes.", pickup = "Mor'zul Bloodbringer, Burning Steppes (12.7, 31.6)", turnin = "Gorzeeki Wildeyes, Burning Steppes" },
@@ -1267,7 +1263,7 @@ FLT.QUEST_PREREQ_DETAILS = {
   [5262] = { level = 60, requires = 55, objective = "Take the Head of Balnazzar to Duke Nicholas Zverenhoff in the Eastern Plaguelands.", pickup = "Head of Balnazzar, dropped by Balnazzar", turnin = "Duke Nicholas Zverenhoff, Eastern Plaguelands" },
   [5518] = { level = 60, requires = 56, objective = "Bring 4 Bolts of Runecloth, 8 Rugged Leather, 2 Rune Threads, and Ogre Tannin to Knot Thimblejack. He is currently chained inside the Gordok wing of Dire Maul.", pickup = "Knot Thimblejack, inside Dire Maul: North", turnin = "Knot Thimblejack, inside Dire Maul: North" },
   [7461] = { level = 60, requires = 56, objective = "You must destroy the guardians surrounding the 5 Pylons that power the Prison of Immol'thar. Once the Pylons have powered down, the force field surrounding Immol'thar will have dissipated.  Enter the Prison of Immol'thar and eradicate the foul demon that stands at its heart. Finally, confront Prince Tortheldrin in Athenaeum.  Return to the Shen'dralar Ancient in the courtyard should you complete this quest.", pickup = "Shen'dralar Ancient, inside Dire Maul: West", turnin = "Shen'dralar Ancient, inside Dire Maul: West" },
-  [7507] = { level = 60, requires = 60, objective = "Return Nostro's Compendium of Dragon Slaying to the Athenaeum.", pickup = "Foror's Compendium of Dragon Slaying, a drop inside Dire Maul: West", turnin = "Lorekeeper Lydros, inside Dire Maul: West" },
+  [7507] = { level = 60, requires = 60, objective = "Return Nostro's Compendium of Dragon Slaying to the Athenaeum.", pickup = "Nostro's Compendium of Dragon Slaying, a drop inside Dire Maul: West", turnin = "Lorekeeper Lydros, inside Dire Maul: West" },
   [99156] = { level = 13, requires = 6, objective = "Bring Riptear's Heart to Deathguard Linnea.", pickup = "Deathguard Linnea, Tirisfal Glades (65.5, 60.2)", turnin = "Deathguard Linnea, Tirisfal Glades" },
   [203] = { level = 33, requires = 30, objective = "Kill 15 Kurzen Jungle Fighters.  Return to Sergeant Yohwa at the Rebel Camp.", pickup = "Sergeant Yohwa, Stranglethorn Vale (38.0, 3.3)", turnin = "Sergeant Yohwa, Stranglethorn Vale" },
   [204] = { level = 34, requires = 30, objective = "Bring 7 Jungle Remedies and 1 Venom Fern Extract to Sergeant Yohwa at the Rebel Camp.", pickup = "Sergeant Yohwa, Stranglethorn Vale (38.0, 3.3)", turnin = "Sergeant Yohwa, Stranglethorn Vale" },
@@ -1324,8 +1320,8 @@ FLT.QUEST_PREREQ_DETAILS = {
   [94889] = { level = 44, requires = 38, objective = "Defeat 8 Twilight Fanatics, 8 Twilight Corrupters, and 8 Twilight Champions within the Twilight's Shroud for Sergeant Riftan.", pickup = "Sergeant Riftan, Riverglades (30.7, 49.1)", turnin = "Sergeant Riftan, Riverglades" },
   [94890] = { level = 46, requires = 38, objective = "Defeat Overlord Kilgar within the Twilight's Shroud and bring his head to Sergeant Riftan.", pickup = "Sergeant Riftan, Riverglades (30.7, 49.1)", turnin = "Sergeant Riftan, Riverglades" },
   [94907] = { level = 44, requires = 36, objective = "Summon a Twilight's Thrall from a conduit within the Twilight Shroud and capture it with Amberhall's Soulstone.", pickup = "Demar Brant, Riverglades (66.7, 81.0)", turnin = "Ashe Amberhall, Riverglades" },
-  [94973] = { level = 41, requires = 38, objective = "Find someone in Rog'mar who may know about the mould.", turnin = "Kreza Darkthorn, Riverglades" },
-  [94980] = { level = 41, requires = 38, objective = "Find someone in Farholde Keep who may know about the mould.", turnin = "Alphonse Dumas, Riverglades" },
+  [94973] = { level = 41, requires = 38, objective = "Find someone in Rog'mar who may know about the mould.", pickup = "Krol'dok Mould, dropped by Tunk inside Krol'dok Stronghold", turnin = "Kreza Darkthorn, Riverglades" },
+  [94980] = { level = 41, requires = 38, objective = "Find someone in Farholde Keep who may know about the mould.", pickup = "Krol'dok Mould, dropped by Tunk inside Krol'dok Stronghold", turnin = "Alphonse Dumas, Riverglades" },
   [94983] = { level = 42, requires = 38, objective = "Collect 8 Cultist Bangles from the Twilight's Hammer in Krol'dok Stronghold.", pickup = "Sergeant Riftan, Riverglades (30.7, 49.1)", turnin = "Sergeant Riftan, Riverglades" },
   [94997] = { level = 42, requires = 38, objective = "Bring the Satchel of Cursed Mementos to Ashe Amberhall in Farholde Keep.", pickup = "Sergeant Riftan, Riverglades (30.7, 49.1)", turnin = "Ashe Amberhall, Riverglades" },
   [95034] = { level = 24, requires = 18, objective = "Speak with Lumina Windsinger in the Sepulcher.", pickup = "Lumina Windsinger, Silverpine Forest (43.4, 41.0)", turnin = "Lumina Windsinger, Silverpine Forest" },
@@ -1359,10 +1355,6 @@ FLT.QUEST_PREREQ_DETAILS = {
   [96010] = { level = 41, requires = 41, objective = "Recover shards and fragments of the pylons, found guarded at the Magram and Gelkis villages. Return them to Mordent Evenshade.", pickup = "Mordent Evenshade, Shen'dralas (35.2, 46.6)", turnin = "Mordent Evenshade, Shen'dralas" },
   [96018] = { level = 43, requires = 43, objective = "Acquire the Mana Sieve from within the temple in Shen'dralas and use it to collect Ancient Mana Crystals. Once you have acquired enough mana, empower the pylons and return to Mordent Evenshade.", pickup = "Mordent Evenshade, Shen'dralas (35.2, 46.6)", turnin = "Mordent Evenshade, Shen'dralas" },
   [96204] = { level = 22, requires = 18, objective = "Accompany Lumina Windsinger and help her escape Fenris Keep.", pickup = "Lumina Windsinger, Silverpine Forest (65.5, 23.3)", turnin = "Lumina Windsinger, Silverpine Forest" },
-  [96797] = { level = 54, requires = 45, objective = "Travel to Nethergarde Keep in the Blasted Lands and locate Sergeant Danneth.", pickup = "Orphan Matron Aria, Alterac Mountains (21.6, 73.2)", turnin = "Lieutenant Connar, Blasted Lands" },
-  [96798] = { level = 54, requires = 45, objective = "Find Sergeant Danneth somewhere in the Serpent's Coil caverns southeast of Nethergarde Keep.", pickup = "Lieutenant Connar, Blasted Lands (66.1, 19.4)", turnin = "Sergeant Danneth, Blasted Lands" },
-  [96799] = { level = 54, requires = 45, objective = "Speak with Sergeant Danneth at Nethergarde Keep.", pickup = "Lieutenant Connar, Blasted Lands (66.1, 19.4)", turnin = "Sergeant Danneth, Blasted Lands" },
-  [96811] = { level = 54, requires = 45, objective = "Escort Sergeant Danneth out of the Serpent's Coil caves and back to Nethergarde Keep.", pickup = "Sergeant Danneth, Blasted Lands (66.7, 31.7)", turnin = "Lieutenant Connar, Blasted Lands" },
   [97288] = { level = 21, requires = 15, objective = "Deliver the Abominable Head to Master Apothecary Faranell within the Undercity.", turnin = "Master Apothecary Faranell, Undercity" },
   [97289] = { level = 21, requires = 15, objective = "Bring the Head of the Baron to the body of Othmar in the Undercity.", pickup = "Master Apothecary Faranell, Undercity (48.8, 69.3)", turnin = "Unfinished Abomination, Undercity" },
   [97290] = { level = 21, requires = 15, objective = "Report your findings to Master Apothecary Faranell in Undercity.", pickup = "Unfinished Abomination, Undercity (45.9, 61.7)", turnin = "Master Apothecary Faranell, Undercity" },

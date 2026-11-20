@@ -66,8 +66,8 @@ function UI.CreateProfitPage(parent)
   local minS = numBox(60, 6, "minS"); minS:SetPoint("LEFT", mpFS, "RIGHT", 10, 0)
   -- beta36 (user 12.11.: "oben eine anzeige wieviel profit ... und wieviel gold ich investieren muss"): for the selection,
   -- right on the filter row: the gold to put in (material cost x crafts) and the profit about
-  local selFS = FLT.NewFS(f, nil, "OVERLAY", "GameFontNormal"); selFS:SetPoint("TOPRIGHT", -12, -64); selFS:SetJustifyH("RIGHT")
-  local status = FLT.NewFS(f, nil, "OVERLAY", "GameFontDisableSmall"); status:SetPoint("TOPLEFT", 12, -90); status:SetPoint("RIGHT", f, "RIGHT", -12, 0)
+  local selFS = FLT.NewFS(f, nil, "OVERLAY", "GameFontNormal"); selFS:SetPoint("TOPRIGHT", -12, -88); selFS:SetJustifyH("RIGHT")
+  local status = FLT.NewFS(f, nil, "OVERLAY", "GameFontDisableSmall"); status:SetPoint("TOPLEFT", 12, -90); status:SetPoint("RIGHT", selFS, "LEFT", -16, 0)
   status:SetJustifyH("LEFT"); status:SetWordWrap(false)
 
   local addCL = UI.GoldButton(f, L["Add to Crafting List"], 160, 24, nil, 12); addCL:SetPoint("TOPRIGHT", -10, -2)
@@ -187,7 +187,19 @@ function UI.CreateProfitPage(parent)
       status:SetText("|cffffb040" .. L["Needs Auctionator: the auction house prices come from it."] .. "|r")
     elseif not results then status:SetText(L["Click Search to find the recipes that sell for more than their materials cost."])
     else summary() end
-    empty:SetText(results and #results == 0 and L["Nothing found that sells with profit right now."] or "")
+    local why = ""
+    if results and #results == 0 then
+      local st = SU.profitStats
+      if allResults and #allResults == 0 and st and st.priced == 0 then
+        why = L["None of these items is on the auction house in the last Auctionator scan - scan it again (Auctionator: Full Scan)."]
+      elseif allResults and #allResults == 0 and st and st.costed == 0 then
+        why = string.format(L["%d items have an auction house price, but a price for at least one of their materials is missing."], st.priced)
+      elseif allResults and #allResults == 0 and st then
+        why = string.format(L["%d items have prices: none sells for more than its materials cost right now."], st.costed)
+      end
+      why = L["Nothing found that sells with profit right now."] .. (why ~= "" and ("\n|cff9d9d9d" .. why .. "|r") or "")
+    end
+    empty:SetText(why)
     for i, e in ipairs(results or {}) do
       local b = row(i); used = i; b.e = e
       b.check:SetKind(sel[e.r.s] and "check" or "ring")
@@ -241,6 +253,11 @@ function UI.CreateProfitPage(parent)
   search:SetScript("OnClick", doSearch)
   -- 6.2.8 (user 14.11.: "einen Reset button ... der die Maske zurueck setzt"): empty filters, no selection, no result
   local reset = UI.GoldButton(f, L["Reset"], 70, 20, nil, 11); reset:SetPoint("LEFT", minS, "RIGHT", 14, 0)
+  -- 6.2.12-beta19: "Don't use own materials" behind Reset (beta19 first put it on top of Reset - user 18.11. "was hast du
+  -- denn da gemacht?"); the shopping list takes nothing off (SU.ProfitBuyList)
+  if UI.NoOwnSwitch then
+    local cb, fs = UI.NoOwnSwitch(f); cb:SetPoint("LEFT", reset, "RIGHT", 18, 0); fs:SetPoint("LEFT", cb, "RIGHT", 4, 0)
+  end
   reset:SetScript("OnClick", function()
     local d = fdb(); d.lo, d.hi, d.minS = nil, nil, nil
     lo:SetText(""); hi:SetText(""); minS:SetText(""); lo:ClearFocus(); hi:ClearFocus(); minS:ClearFocus()
@@ -292,7 +309,7 @@ function UI.CreateProfitPage(parent)
   sendA:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_BOTTOM"); GameTooltip:AddLine(L["Send to Auctionator"], GOLD[1], GOLD[2], GOLD[3])
     GameTooltip:AddLine(L["The auction house materials for the selected recipes (as many crafts as in their fields), as the shopping list \"OneForAll Profit\"."], 1, 1, 1, true)
-    GameTooltip:AddLine(SU.NoAlts and SU.NoAlts() and L["What you already have (bags, bank) is taken off."] or L["What you already have (bags, bank, other characters) is taken off."], 0.7, 0.7, 0.7, true); GameTooltip:Show()
+    GameTooltip:AddLine((SU.NoOwn and SU.NoOwn() and L["Nothing you already have is taken off."]) or (SU.NoAlts and SU.NoAlts() and L["What you already have (bags, bank) is taken off."]) or L["What you already have (bags, bank, other characters) is taken off."], 0.7, 0.7, 0.7, true); GameTooltip:Show()
   end)
   sendA:SetScript("OnLeave", function() GameTooltip:Hide() end)
 

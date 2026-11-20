@@ -20,7 +20,8 @@ General sources
   foreverchanges.pro had none yet.
 - Boss and entrance positions on the maps of Hall of Thanes, Ruins of Lordaeron, Excavation Site and City of
   Dalaran: the boss pins of the foreverchanges.pro dungeon maps, converted to our map layout (approximate).
-- Classic drop chances: foreverchanges.pro (Wowhead Classic data).
+- Classic drop chances: foreverchanges.pro (Wowhead Classic data). Drop chances measured in WoW Forever: Wowhead Forever
+  boss pages (drop count / kills, bosses with 100+ kills; marked in Data/DungeonDropChance.lua, November 2026).
 
 
 4.4.0 dungeons (Stockade, Gnomeregan, SM Graveyard, Excavation Site, City of Dalaran), checked 30 September 2026

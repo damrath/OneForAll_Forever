@@ -141,9 +141,17 @@ local function num(v)
   if type(v) ~= "number" or FLT.IsSecret(v) then return nil end
   return v
 end
+-- shown? A secret answer (BlizzThreatPlates' own frames, Discord grumpymuppet 18.11.: "attempt to perform boolean test on a
+-- secret boolean value") counts as not shown (6.2.12-beta22)
+local function shown(f)
+  if not (f and f.IsVisible) then return false end
+  local v = f:IsVisible()
+  if FLT.IsSecret(v) then return false end
+  return v and true or false
+end
 local function addonBar(f, skip, depth, best, bestA)
   for _, c in ipairs({ f:GetChildren() }) do
-    if c ~= skip and c.IsVisible and c:IsVisible() then
+    if c ~= skip and shown(c) then
       if c.IsObjectType and c:IsObjectType("StatusBar") then
         local w, h = num(c:GetWidth()), num(c:GetHeight())
         -- secret sizes: the bar the addon calls its health / status bar wins, else the first one found
@@ -157,10 +165,10 @@ local function addonBar(f, skip, depth, best, bestA)
 end
 local function visibleBar(plate, uf)
   local bar = uf and (uf.healthBar or uf.HealthBar)
-  if bar and (not uf.IsVisible or uf:IsVisible()) and (not uf.GetEffectiveAlpha or (num(uf:GetEffectiveAlpha()) or 1) > 0.05)
-    and (not bar.IsVisible or bar:IsVisible()) then return bar, true end
+  if bar and (not uf.IsVisible or shown(uf)) and (not uf.GetEffectiveAlpha or (num(uf:GetEffectiveAlpha()) or 1) > 0.05)
+    and (not bar.IsVisible or shown(bar)) then return bar, true end
   local c = plate.ofaBar
-  if not (c and c:IsVisible()) then c = plate.GetChildren and addonBar(plate, uf, 1, nil, 0); plate.ofaBar = c end
+  if not shown(c) then c = plate.GetChildren and addonBar(plate, uf, 1, nil, 0); plate.ofaBar = c end
   if c then return c, false end
   return bar or plate, true
 end

@@ -190,6 +190,7 @@ local function newRow()
   end)
   b.buy:SetScript("OnLeave", function() GameTooltip:Hide() end)
   b.map:SetScript("OnClick", function(self) if self.loc and FLT.ShowOnMap then FLT:ShowOnMap(self.loc) end end)
+  b.newm = UI.NewMark(b, string.format(L["New in OneForAll %s."], "6.2.12")); b.newm:Hide() -- buy or craft (beta18)
   b:SetScript("OnEnter", function(self)
     if not (self.item or self.key) then return end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -201,6 +202,7 @@ local function newRow()
     if not self.item then GameTooltip:AddLine(L["Steps"], GOLD[1], GOLD[2], GOLD[3])
     elseif GameTooltip.SetItemByID then GameTooltip:SetItemByID(self.item) else GameTooltip:AddLine(itemName(self.item)) end
     if self.key then GameTooltip:AddLine(L["Right-click: mark this step as done (or not done)."], 0.62, 0.62, 0.62, true) end
+    if self.tip then GameTooltip:AddLine(" "); GameTooltip:AddLine(self.tip, 1, 0.82, 0, true) end
     local CL = FLT.CraftList
     if CL and CL.Stock then
       local _, places = CL.Stock(self.item)
@@ -215,6 +217,7 @@ local function newRow()
       if self.key and gprof then SU.SetStepDone(gprof, self.key, not self.isDone); SU.RefreshGuide() end
       return
     end
+    if self.toggle then self.toggle(); return end
     local H = UI.DungeonHelpers
     if self.item and H and H.handleDungeonItemClick then H.handleDungeonItemClick({ id = self.item }, button) end
   end)
@@ -226,8 +229,8 @@ local function line(y, o)
   used = used + 1
   local b = rows[used]; if not b then b = newRow(); rows[used] = b end
   b:ClearAllPoints(); b:SetPoint("TOPLEFT", 4, y); b:SetPoint("RIGHT", gchild, "RIGHT", -4, 0); b:Show()
-  b.item, b.key, b.isDone = o.item, o.key, o.done
-  b.c1:Hide(); b.call:Hide(); b.pbar:Hide(); b.chance:Hide(); b.buy:Hide()
+  b.item, b.key, b.isDone, b.toggle, b.tip = o.item, o.key, o.done, o.toggle, o.tip
+  b.c1:Hide(); b.call:Hide(); b.pbar:Hide(); b.chance:Hide(); b.buy:Hide(); b.newm:Hide()
   local x = 4 + (o.indent or 0) * 14
   b.cur:SetShown(o.current and true or false)
   if o.head then
@@ -237,6 +240,7 @@ local function line(y, o)
     if o.done then b.mark:SetKind("check"); b.mark:SetColor(0.35, 0.85, 0.40) end
     b.text:ClearAllPoints(); b.text:SetPoint("LEFT", x + (o.done and 18 or 0), 0); b.text:SetPoint("RIGHT", -4, 0)
     b.text:SetFontObject("GameFontNormal"); b.text:SetText(o.head); b.text:SetTextColor(FLT.SkinC(unpack(GOLD)))
+    if o.new then b.newm:ClearAllPoints(); b.newm:SetPoint("LEFT", b.text, "LEFT", (b.text:GetStringWidth() or 0) + 4, 0); b.newm:Show() end
     b:SetHeight(24)
     return y - 26
   end
@@ -297,6 +301,12 @@ local function elsewhere(id) -- "12 in bank, 5 on Smörgi Banklshofer" (6.2.7-be
   return CL and CL.Elsewhere and CL.Elsewhere(id) or nil
 end
 
+-- what counts as bought for the shopping lines: with "Don't use own materials" only the bags (bought things land there),
+-- else bags, bank and other characters
+local function haveBuy(id)
+  if SU.NoOwn() then return FLT.CraftList and FLT.CraftList.InBags and FLT.CraftList.InBags(id) or 0 end
+  return SU.Have(id)
+end
 local remain, prepS = {}, {} -- reused by refreshGuide (SU.RemainingMats, SU.PrepStatus)
 local function refreshGuide()
   if not (guide and guide:IsShown() and gplan) then return end
@@ -324,24 +334,54 @@ local function refreshGuide()
     return closed
   end
   -- auction house
+  -- 6.2.12-beta18 (user 18.11.: "die fertigen bolt of mageweave zu kaufen. mit der differenz wie viel es mehr kosten
+  -- wuerde"): intermediates that can be bought or crafted; ticked = bought ready-made, right = what buying costs more (+)
+  -- or less (-) than crafting; a click switches and works the plan out again (same route)
+  local ch = {}
+  for _, c in pairs(plan.choices or {}) do if c.n > 0 then ch[#ch + 1] = c end end
+  if #ch > 0 then
+    table.sort(ch, function(a, b) return a.id < b.id end)
+    n = n + 1; y = line(y, { head = n .. ". " .. L["Buy ready-made or craft"], new = true })
+    y = line(y, { text = L["Ticked: bought ready-made instead of crafted. Right: what that costs more (+) or less (-) than crafting. Click to switch."], grey = true })
+    for _, c in ipairs(ch) do
+      local diff = (c.buyU - c.craftU) * c.n
+      local right = diff >= 0 and ("|cffff8040+ |r" .. money(diff)) or ("|cff59ff73- |r" .. money(-diff))
+      local tip = string.format(L["Ready-made: %s each. Crafted: %s each (its materials)."], money(c.buyU), money(c.craftU))
+      y = line(y, { item = c.id, text = string.format(L["Buy %dx %s ready-made"], c.n, itemName(c.id)), right = right, done = c.buying, indent = 1, tip = tip,
+        toggle = function()
+          SU.SetPrepChoice(prof, c.id, c.buying and "craft" or "buy")
+          for _, k in ipairs({ "s:ah", "s:vendor", "s:other" }) do SU.SetStepDone(prof, k, false) end
+          local st = state(prof)
+          local np = SU.Plan(prof, { from = st.skill or plan.from, to = plan.to, ah = on("ah"), vendor = on("vendor") })
+          if np then gplan = np end
+          if SU._onDB then SU._onDB() end -- the Skill-Up page (costs) when it is open
+          refreshGuide()
+        end })
+    end
+  end
   local ahClosed = true
   if #plan.ah > 0 then
     local items = { { text = SU.HasAuctionator() and L["Open the auction house, send the shopping list to Auctionator and buy everything on it."] or L["Open the auction house and buy:"], grey = true } }
     for _, sh in ipairs(plan.ah) do
       local m = plan.mats[sh.id]
       local want = m and (m.need - m.craft) or sh.n
-      items[#items + 1] = { item = sh.id, text = itemName(sh.id), right = sh.n .. "x  ~" .. money((sh.price or 0) * sh.n), done = SU.Have(sh.id) >= want, indent = 1 }
+      items[#items + 1] = { item = sh.id, text = itemName(sh.id), right = sh.n .. "x  ~" .. money((sh.price or 0) * sh.n), done = haveBuy(sh.id) >= want, indent = 1 }
     end
     ahClosed = section("ah", L["Auction house"], items)
   end
-  gsend:SetShown(not ahClosed and SU.HasAuctionator())
+  -- 6.2.12-beta17 (user 18.11.: "mein button send to auctionator weg ist im skill up guide"): it was only there with
+  -- something to buy on the auction house; the materials without a known price go on the list too (put up after the last
+  -- scan, Auctionator finds them), so it shows with either
+  local farmOpen = false
+  for _, sh in ipairs(plan.other or {}) do if haveBuy(sh.id) < sh.n then farmOpen = true; break end end
+  gsend:SetShown(SU.HasAuctionator() and (not ahClosed or farmOpen))
   -- vendors
   if #plan.vendor > 0 then
     local items = { { text = L["Trade supplies vendors sell these (in every big city):"], grey = true } }
     for _, sh in ipairs(plan.vendor) do
       local m = plan.mats[sh.id]
       local want = m and (m.need - m.craft) or sh.n
-      local have = SU.Have(sh.id)
+      local have = haveBuy(sh.id)
       items[#items + 1] = { item = sh.id, text = itemName(sh.id), right = sh.n .. "x  " .. money((sh.price or 0) * sh.n), done = have >= want, indent = 1,
         buy = have < want and (want - have) or nil }
     end
@@ -349,7 +389,7 @@ local function refreshGuide()
   end
   if #plan.other > 0 then
     local items = { { text = L["No price known: not on the auction house (scan it with Auctionator) and no vendor sells it."], grey = true } }
-    for _, sh in ipairs(plan.other) do items[#items + 1] = { item = sh.id, text = itemName(sh.id), right = sh.n .. "x", done = SU.Have(sh.id) >= sh.n, indent = 1 } end
+    for _, sh in ipairs(plan.other) do items[#items + 1] = { item = sh.id, text = itemName(sh.id), right = sh.n .. "x", done = haveBuy(sh.id) >= sh.n, indent = 1 } end
     section("other", L["Farm or find"], items)
   end
   -- materials: what the rest of the route still needs (beta25, user 12.11.: "dynamisch waechst bzw. abnimmt" - it shrinks
@@ -361,12 +401,12 @@ local function refreshGuide()
   if #ids > 0 then
     table.sort(ids)
     head(L["Materials"])
-    y = line(y, { text = L["Have them in your bags before you start: fetch them from the bank and mail them from your other characters."], grey = true })
+    y = line(y, { text = SU.NoOwn() and L["Have them in your bags before you start."] or L["Have them in your bags before you start: fetch them from the bank and mail them from your other characters."], grey = true })
     for _, id in ipairs(ids) do
       local want = rest[id]
       local inBags = FLT.CraftList and FLT.CraftList.InBags and FLT.CraftList.InBags(id) or 0
       local txt = itemName(id)
-      local where = inBags < want and elsewhere(id)
+      local where = inBags < want and not SU.NoOwn() and elsewhere(id)
       if where then txt = txt .. "  |cffffd060(" .. where .. ")|r" end -- next to the name (user 13.11.)
       y = line(y, { item = id, text = txt, right = string.format(L["%d / %d in bags"], inBags, want), done = inBags >= want, indent = 1 })
     end
@@ -488,7 +528,11 @@ local function createGuide()
   ghint:SetPoint("RIGHT", guide, "RIGHT", -172, 0); ghint:SetJustifyH("LEFT")
   ghint:SetText(L["You can open this window with Alt + right-click on the minimap button."])
   gsend:SetScript("OnClick", function()
-    SU.SendToAuctionator(gplan, nil, function(ok, missing)
+    -- the auction house list and the materials without a price (beta17)
+    local list = {}
+    for _, sh in ipairs(gplan and gplan.ah or {}) do list[#list + 1] = sh end
+    for _, sh in ipairs(gplan and gplan.other or {}) do local h = haveBuy(sh.id); if h < sh.n then list[#list + 1] = { id = sh.id, n = sh.n - h } end end
+    SU.SendToAuctionator({ ah = list }, nil, function(ok, missing)
       if not FLT.Msg then return end
       FLT.Msg(ok and L["Shopping list \"OneForAll Skill-Up\" is in Auctionator (Shopping tab)."] or L["Auctionator did not take the list (open the auction house once, then try again)."])
       if ok and missing > 0 then FLT.Msg(string.format(L["%d materials could not be added yet (item data still loading) - send the list again."], missing)) end
@@ -559,6 +603,24 @@ function UI.NoAltsSwitch(f, onChange)
   return cb, fs
 end
 
+-- "Don't use own materials" (6.2.12-beta19, user 18.11.: "damit nichts aus der bank oder den eigenen taschen verwendet
+-- wird", Standard aus): one setting for the Skill-Up Helper and the Profit page (SU.NoOwn)
+function UI.NoOwnSwitch(f, onChange)
+  local cb = FLT.SkinBlizz(CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")); cb:SetSize(22, 22)
+  local fs = FLT.NewFS(f, nil, "OVERLAY", "GameFontHighlightSmall"); fs:SetText(L["Don't use own materials"])
+  cb:SetScript("OnShow", function(self) self:SetChecked(SU.NoOwn()) end)
+  cb:SetChecked(SU.NoOwn())
+  cb:SetScript("OnClick", function(self) sdb().noOwn = self:GetChecked() and true or nil; if onChange then onChange() end end)
+  cb:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM"); GameTooltip:AddLine(L["Don't use own materials"], GOLD[1], GOLD[2], GOLD[3])
+    GameTooltip:AddLine(L["Nothing from your bags, bank or other characters is used - every material is bought or farmed."], 1, 1, 1, true)
+    GameTooltip:Show()
+  end)
+  cb:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  local m = UI.NewMark(f, string.format(L["New in OneForAll %s."], "6.2.12")); m:SetPoint("LEFT", fs, "RIGHT", 2, 0)
+  return cb, fs
+end
+
 -- Page --------------------------------------------------------------------------------------------------------------
 function UI.CreateSkillUpPage(parent)
   local f = CreateFrame("Frame", nil, parent); f:SetAllPoints(); f:Hide()
@@ -567,7 +629,7 @@ function UI.CreateSkillUpPage(parent)
   -- under it one framed box - line 1 your skill, the target and the last auction house scan, line 2 the three switches
   -- spread evenly - and the price note under the box
   UI.SectionTitle(f, L["Skill-Up Helper"], 8, -4, -280)
-  local box0 = CreateFrame("Frame", nil, f); box0:SetPoint("TOPLEFT", 10, -30); box0:SetPoint("RIGHT", f, "RIGHT", -10, 0); box0:SetHeight(64)
+  local box0 = CreateFrame("Frame", nil, f); box0:SetPoint("TOPLEFT", 10, -30); box0:SetPoint("RIGHT", f, "RIGHT", -10, 0); box0:SetHeight(88)
   UI.MarkBG(UI.RoundRect(box0, box0, "BACKGROUND", 0, 7, 1, 0.07, 0.06, 0.05, 0.95))
   UI.RoundRect(box0, box0, "BORDER", 0, 8, 0, 0.45, 0.35, 0.20, 0.9, UI.ASSET_ROOT .. "window_ring")
   local sep = UI.makeTexture(box0, "ARTWORK", 0.62, 0.47, 0.24, 0.35); sep:SetHeight(1)
@@ -604,15 +666,21 @@ function UI.CreateSkillUpPage(parent)
     local cb, fs = UI.NoAltsSwitch(box0, function() if calc then calc(true) end end) -- the costs change: a new route
     fs:SetPoint("LEFT", cb, "RIGHT", 4, 0); switches[3] = cb
   end
+  do -- beta19: the fourth switch; two per row (box 24 higher, everything under it moved down by 24)
+    local cb, fs = UI.NoOwnSwitch(box0, function() if calc then calc(true) end end)
+    fs:SetPoint("LEFT", cb, "RIGHT", 4, 0); switches[4] = cb
+  end
   local function placeSwitches()
     local w = box0:GetWidth() or 0
-    for i, cb in ipairs(switches) do cb:ClearAllPoints(); cb:SetPoint("LEFT", box0, "TOPLEFT", 10 + (i - 1) * math.floor((w - 20) / 3), -48) end
+    for i, cb in ipairs(switches) do
+      cb:ClearAllPoints(); cb:SetPoint("LEFT", box0, "TOPLEFT", 10 + ((i - 1) % 2) * math.floor((w - 20) / 2), i <= 2 and -48 or -72)
+    end
   end
   box0:SetScript("OnSizeChanged", placeSwitches); placeSwitches()
-  local status = FLT.NewFS(f, nil, "OVERLAY", "GameFontDisableSmall"); status:SetPoint("TOPLEFT", 12, -102); status:SetPoint("RIGHT", f, "RIGHT", -12, 0)
+  local status = FLT.NewFS(f, nil, "OVERLAY", "GameFontDisableSmall"); status:SetPoint("TOPLEFT", 12, -126); status:SetPoint("RIGHT", f, "RIGHT", -12, 0)
   status:SetJustifyH("LEFT"); status:SetWordWrap(false)
   -- the big progress bar: skill since the plan was started -> target (user 12.11.: "ein grosser, damit es optisch gut aussieht")
-  local bar = CreateFrame("Frame", nil, f); bar:SetPoint("TOPLEFT", 10, -120); bar:SetPoint("RIGHT", f, "RIGHT", -10, 0); bar:SetHeight(28)
+  local bar = CreateFrame("Frame", nil, f); bar:SetPoint("TOPLEFT", 10, -144); bar:SetPoint("RIGHT", f, "RIGHT", -10, 0); bar:SetHeight(28)
   UI.MarkBG(UI.RoundRect(bar, bar, "BACKGROUND", 0, 7, 1, 0.07, 0.06, 0.05, 0.95))
   UI.RoundRect(bar, bar, "BORDER", 0, 8, 0, 0.62, 0.47, 0.24, 0.95, UI.ASSET_ROOT .. "window_ring")
   local fill = bar:CreateTexture(nil, "ARTWORK"); FLT.SetTex(fill, "Interface\\TargetingFrame\\UI-StatusBar")
@@ -650,7 +718,7 @@ function UI.CreateSkillUpPage(parent)
   -- the row spans exactly the bar's width; the tiles share it (beta13, user 12.11.: flush with the bar)
   local tiles = {}
   local TILE_GAP = 6
-  local row = CreateFrame("Frame", nil, f); row:SetPoint("TOPLEFT", 10, -160); row:SetPoint("RIGHT", f, "RIGHT", -10, 0); row:SetHeight(46)
+  local row = CreateFrame("Frame", nil, f); row:SetPoint("TOPLEFT", 10, -184); row:SetPoint("RIGHT", f, "RIGHT", -10, 0); row:SetHeight(46)
   local function layoutTiles()
     local w = row:GetWidth() or 0
     if w <= 0 then return end
@@ -685,9 +753,10 @@ function UI.CreateSkillUpPage(parent)
   local tResale = tile(7, L["Resale value"])
   tResale.value:SetTextColor(0.62, 0.62, 0.62)
   layoutTiles()
-  local note = FLT.NewFS(f, nil, "OVERLAY", "GameFontDisableSmall"); note:SetPoint("TOPLEFT", 12, -210); note:SetPoint("RIGHT", f, "RIGHT", -10, 0)
+  local note = FLT.NewFS(f, nil, "OVERLAY", "GameFontDisableSmall"); note:SetPoint("TOPLEFT", 12, -234); note:SetPoint("RIGHT", f, "RIGHT", -10, 0)
   note:SetJustifyH("LEFT")
   local open = UI.GoldButton(f, L["Open guide"], 120, 24, nil, 12); open:SetPoint("TOPRIGHT", -10, -2)
+  open.wantGreen = true; open:SetGreen(true) -- 6.2.12-beta17 (user 18.11.: it did not catch the eye); grey while there is no plan
   open:SetScript("OnClick", function() SU.ShowGuide(plan, prof) end)
   -- beta28 (user 12.11.: "Send to Auctionator in diesem Fenster bitte entfernen, das soll man dann ueber den Guide machen")
   -- beta18: the route stays the same until this is clicked (or target / switches change)
@@ -703,7 +772,7 @@ function UI.CreateSkillUpPage(parent)
     { x = 530, w = 130, text = L["Cost"] }, { x = 660, w = 160, text = L["Learn"] } }
   UI.ColumnHeader(f, cols, 820, -226)
   local sf = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate"))
-  sf:SetPoint("TOPLEFT", 4, -254); sf:SetPoint("BOTTOMRIGHT", -26, 4)
+  sf:SetPoint("TOPLEFT", 4, -278); sf:SetPoint("BOTTOMRIGHT", -26, 4)
   local child = CreateFrame("Frame", nil, sf); child:SetSize(800, 10); sf:SetScrollChild(child)
   if UI.PlaceScrollBar then UI.PlaceScrollBar(sf) end
   local empty = FLT.NewFS(child, nil, "OVERLAY", "GameFontDisable"); empty:SetPoint("TOP", 0, -30); empty:SetWidth(700)
@@ -771,13 +840,14 @@ function UI.CreateSkillUpPage(parent)
     for _, x in ipairs(plan.ah) do ahC = ahC + (x.price or 0) * x.n end
     for _, x in ipairs(plan.vendor) do vC = vC + (x.price or 0) * x.n end
     local short = function(c) return money(c >= 10000 and math.floor(c / 100) * 100 or c) end -- no copper next to gold
-    tTotal.value:SetText(short(plan.cost)); tTotal.tip = L["Materials you have count as free."]
+    tTotal.value:SetText(short(plan.cost)); tTotal.tip = SU.NoOwn() and L["Every material is bought or farmed - your own ones are not used."] or L["Materials you have count as free."]
     tAH.value:SetText(short(ahC)); tAH.tip = string.format(L["%d different materials at the auction house."], #plan.ah)
     tVendor.value:SetText(short(vC)); tVendor.tip = L["Trade supplies vendors sell these (in every big city):"]:gsub(":$", "") .. "."
     tPattern.value:SetText(short(plan.recipeCost)); tPattern.tip = L["Recipes and patterns to learn on the way (trainer, vendor or auction house)."]
     tTrain.value:SetText(short(plan.trainCost)); tTrain.tip = L["Ranks to train on the way."]
     tCrafts.value:SetText(math.ceil(plan.expected - 1e-9) .. " |cff9d9d9d/ " .. plan.safe .. "|r")
     tCrafts.tip = string.format(L["%d crafts expected, %d planned with the buffer. Materials you have count as free."], math.ceil(plan.expected - 1e-9), plan.safe)
+    if SU.NoOwn() then tCrafts.tip = tCrafts.tip .. "\n" .. L["Every material is bought or farmed - your own ones are not used."] end
     tResale.value:SetText(plan.resale > 0 and short(plan.resale) or "-")
     tResale.tip = string.format(L["Resale value at the auction house: about %s (not counted)"], money(plan.resale))
     note:SetText(plan.guessed and ("|cffffb040" .. L["Some prices are estimates (no auction house price)."] .. "|r") or "")
@@ -831,7 +901,7 @@ function UI.CreateSkillUpPage(parent)
         b.icon:ClearAllPoints(); b.icon:SetPoint("LEFT", 12, 0); b.name:ClearAllPoints(); b.name:SetPoint("LEFT", 38, 0); b.name:SetWidth(396)
         b.name:SetText(itemName(id)); b.name:SetTextColor(1, 1, 1)
         b.crafts:SetText((have >= want and "|cff40ff60" or "|cffffffff") .. have .. " / " .. want .. "|r")
-        local where = bags < want and elsewhere(id)
+        local where = bags < want and not SU.NoOwn() and elsewhere(id)
         b.cost:SetText(""); b.note:SetText(where and ("|cffffd060" .. where .. "|r") or string.format(L["%d in bags"], bags))
         b:SetScript("OnEnter", function(self)
           if not self.item then return end

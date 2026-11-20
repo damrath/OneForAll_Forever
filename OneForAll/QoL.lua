@@ -17,6 +17,7 @@ local DEFAULTS = {
   inviteMode = "friendsguild", keywordMode = "friendsguild", keyword = "inv", duelMode = "friendsguild",
   durabilityPct = 20, mmDir = "auto", logoColor = "teal", -- logo color: turquoise by default (user 27.10.)
   logoSize = 100, -- size of the minimap / collector button in % (6.2.11, user 17.11.; 100 = as before)
+  junkKey = "alt-right", -- the click that marks junk in the bags (6.2.12-beta3, user 18.11.: default stays Alt + right-click)
   lowRank = true, -- on by default (user 15.10.)
   tipMousePos = "BOTTOMRIGHT", -- Tooltip at the mouse: off, bottom right preselected (user 13.11.; the list showed "Top left" before)
   mapLandmarks = true, lmDungeons = true, lmFlight = true, lmTransport = true, lmTransitions = true, -- transitions: on like all landmarks (user 01.11.) -- Map Landmarks: on with all parts (user 16.10.)
@@ -38,7 +39,10 @@ local DEFAULTS = {
   mapQuests = true, -- quest icons on the world map: on (user 01.11., first off)
   npcQuestTip = true, -- quests to take / turn in on NPC tooltips (6.2.2): on, off while Questie is loaded (user 08.11.)
   mapQuestsContinent = true, -- quest icons also on the continent map: on (user 04.11.)
+  mapQuestsGrey = false, -- also grey (low level) quests on the map (6.2.12-beta15, user 18.11.: "standard: Aus")
+  mapQuestNoRoutes = false, -- hide the routes of walking quest givers (6.2.12-beta5; off = routes shown as before)
   mapQuestGivers = true, mapQuestTurnins = true, -- "!" and "?" each on their own: both on (user 07.11.)
+  guildGames = false, -- Guild Games (6.2.12-beta4, user 14.11.: "standard aus")
   guildMap = true, -- guild members on the map, sends and shows (MapGuild.lua, 6.2.2): on (user 09.11.)
   mapFogAlpha = 100, -- how visible the unexplored parts are, 0-100 %; 100 (user 01.11.)
   mapBooks = true, -- Library Books on the world map: on (user 23.10.)
@@ -103,6 +107,19 @@ QoL.CHAT_HIDE_OPTIONS = { { key = 0, label = N"Never" }, { key = 10, label = N"1
   { key = 30, label = N"30 seconds" }, { key = 60, label = N"1 minute" } }
 QoL.MM_DIR_OPTIONS = { { key = "auto", label = N"Automatic" }, { key = "top", label = N"Top" }, { key = "bottom", label = N"Bottom" },
   { key = "left", label = N"Left" }, { key = "right", label = N"Right" } }
+-- the click that puts a bag item on the junk list (6.2.12-beta3, user 18.11.: some addons use Alt + right-click themselves).
+-- Always with a modifier: a plain right-click uses the item. Not Shift + left (link to chat) or Ctrl + left (try on).
+QoL.JUNK_KEY_OPTIONS = { { key = "alt-right", label = N"Alt + right-click" }, { key = "ctrl-right", label = N"Ctrl + right-click" },
+  { key = "alt-left", label = N"Alt + left-click" }, { key = "ctrl-alt-right", label = N"Ctrl + Alt + right-click" },
+  { key = "shift-alt-right", label = N"Shift + Alt + right-click" } }
+QoL.JUNK_KEYS = { ["alt-right"] = { alt = true, b = "RightButton" }, ["ctrl-right"] = { ctrl = true, b = "RightButton" },
+  ["alt-left"] = { alt = true, b = "LeftButton" }, ["ctrl-alt-right"] = { ctrl = true, alt = true, b = "RightButton" },
+  ["shift-alt-right"] = { shift = true, alt = true, b = "RightButton" } }
+function QoL.JunkKeyText() -- the chosen click in the player's language (tooltips)
+  local k = QoL.Get("junkKey")
+  for _, o in ipairs(QoL.JUNK_KEY_OPTIONS) do if o.key == k then return L[o.label] end end
+  return L["Alt + right-click"]
+end
 
 local function msg(text) if FLT.Msg then FLT.Msg(text) end end
 local function paused() return IsShiftKeyDown and IsShiftKeyDown() end
@@ -237,7 +254,7 @@ local function autoRepair()
 end
 
 -- own junk list (5.7.3, GitHub #22, user 27.10.): item IDs per character (OneForAllCharDB.junkList), sold by
--- "Sell junk" like grey items. Alt+right-click an item in the bags puts it on the list or takes it off.
+-- "Sell junk" like grey items. The junk click (default Alt + right-click) on an item in the bags puts it on the list or off.
 local function junkList()
   if type(OneForAllCharDB) ~= "table" then return {} end
   OneForAllCharDB.junkList = OneForAllCharDB.junkList or {}
@@ -1668,7 +1685,8 @@ local function makeMovable(name)
   if f.EnableMouse then f:EnableMouse(true) end
   local function down(_, button)
     if button == "RightButton" then
-      if QoL.Get("resizeWindows") then sizeStart(f, name) end
+      -- Ctrl + right mouse button (6.2.12-beta2, user 18.11.: a plain right-click inside windows started resizing them)
+      if QoL.Get("resizeWindows") and IsControlKeyDown and IsControlKeyDown() then sizeStart(f, name) end
       return
     end
     if button ~= "LeftButton" or not QoL.Get("moveWindows") then return end
@@ -2133,39 +2151,66 @@ function QoL.DisenchantValue(id)
 end
 end
 
--- beta35 (user 12.11.: "bekommt man den eintrag irgendwie direkt drunter ... also unter Auction"): other addons
--- (Syndicator's "Inventory") add lines between Auctionator's and ours - the last line (ours) is moved up right under
--- Auctionator's "Auction" line, the lines in between move one down (text, colours, right side)
+-- beta35 (user 12.11.: "bekommt man den eintrag irgendwie direkt drunter ... also unter Auction"): right under Auctionator's
+-- "Auction" line. 6.2.12-beta22 (Discord razoroth 18.11.: ItemTree's divider sat on our moved text, lines pushed out of the
+-- tooltip): no more moving text between the tooltip's lines (other addons anchor their pieces to those lines) - the line is
+-- added while Auctionator writes its own, right after its Auction line (post-hook on Auctionator.Tooltip.AddAuctionTip).
+-- Without that hook, or with Auctionator's auction price line switched off: at the end of the tooltip as before.
 do
-  local LABELS = { Auction = true, Auktion = true, ["Enchères"] = true, Subasta = true }
-  local function plain(t) return type(t) == "string" and t:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):match("^%s*(.-)%s*$") or nil end
-  function QoL.MoveUnderAuction(tt)
-    local name = tt and tt.GetName and tt:GetName()
-    local n = name and tt.NumLines and tt:NumLines()
-    if not n or n < 3 then return end
-    local A = Auctionator and Auctionator.Locales and Auctionator.Locales.Get
-    local own = A and select(2, pcall(A, "AUCTION"))
-    local at
-    for i = n - 1, 2, -1 do
-      local fs = _G[name .. "TextLeft" .. i]
-      local t = fs and plain(fs:GetText())
-      if t and (LABELS[t] or (type(own) == "string" and t == own)) then at = i; break end
-    end
-    if not at or at >= n - 1 then return end -- not there, or ours is right under it already
-    local function get(i)
-      local l, r = _G[name .. "TextLeft" .. i], _G[name .. "TextRight" .. i]
-      return { l:GetText(), { l:GetTextColor() }, r and r:GetText(), r and { r:GetTextColor() }, r and r:IsShown() }
-    end
-    local function put(i, d)
-      local l, r = _G[name .. "TextLeft" .. i], _G[name .. "TextRight" .. i]
-      l:SetText(d[1]); l:SetTextColor(unpack(d[2]))
-      if r then r:SetText(d[3]); if d[4] then r:SetTextColor(unpack(d[4])) end; r:SetShown(d[5] and true or false) end
-    end
-    local mine = get(n)
-    for i = n, at + 2, -1 do put(i, get(i - 1)) end
-    put(at + 1, mine)
-    tt:Show() -- lay the lines out again
+  -- beta25 (tester Deaders 19.11.: "this line is not displayed at all" - an enchanter, recipe tooltips): Auctionator's pass
+  -- may run before ours or not at all (no auction line for that item), and tt:GetItem() can be empty there. So: the item of
+  -- our pass is remembered; Auctionator's pass uses it; if Auctionator already ran without adding, or does not run in this
+  -- fill, the line goes at the end (next frame at the latest).
+  local hooked, done, watched, lastId, fired = false, {}, {}, {}, {}
+  local function watch(tt)
+    if watched[tt] or not tt.HookScript then return end
+    watched[tt] = true
+    tt:HookScript("OnTooltipCleared", function(self) done[self], lastId[self], fired[self] = nil, nil, nil end)
   end
+  local function add(tt, id)
+    if done[tt] then return end
+    local v = id and QoL.DisenchantValue(id)
+    if not v then return end
+    watch(tt)
+    tt:AddDoubleLine(L["Disenchant"], money(v), 1, 0.82, 0, 1, 1, 1)
+    done[tt] = true
+  end
+  local function hook()
+    if hooked then return true end -- (not cached while missing: Auctionator may load after the first tooltip)
+    local tips = Auctionator and Auctionator.Tooltip
+    hooked = hooksecurefunc and type(tips) == "table" and type(tips.AddAuctionTip) == "function" and true or false
+    if hooked then
+      hooksecurefunc(tips, "AddAuctionTip", function(tt)
+        if type(tt) ~= "table" or not QoL.Get("deValue") then return end
+        if tt.IsForbidden and tt:IsForbidden() then return end
+        watch(tt); fired[tt] = true
+        local id = lastId[tt]
+        if not id and tt.GetItem then
+          local ok, _, link = pcall(tt.GetItem, tt)
+          if ok and type(link) == "string" and not FLT.IsSecret(link) then id = tonumber(link:match("item:(%d+)")) end
+        end
+        if id then pcall(add, tt, id) end
+      end)
+    end
+    return hooked
+  end
+  local function auctionLineOn()
+    local C = Auctionator and Auctionator.Config
+    local ok, on = pcall(function() return C.Get(C.Options.AUCTION_TOOLTIPS) end)
+    return ok and on and true or false
+  end
+  function QoL.DisenchantLine(tt, id)
+    if done[tt] or not id then return end
+    watch(tt); lastId[tt] = id
+    if not (hook() and auctionLineOn()) or fired[tt] then add(tt, id); return end -- no hook / Auctionator was first
+    -- Auctionator's pass comes later in this fill and adds it under Auction; if it never comes: at the end, next frame
+    if C_Timer then
+      C_Timer.After(0, function()
+        if not done[tt] and lastId[tt] == id and tt.IsShown and tt:IsShown() then add(tt, id); if done[tt] then tt:Show() end end
+      end)
+    end
+  end
+  QoL._deDone = done -- tests
 end
 
 local function addItemLines(tt, link)
@@ -2174,8 +2219,7 @@ local function addItemLines(tt, link)
   if not id then return end
   -- right under Auctionator's "Vendor" / "Auction" lines, in their look (only with Auctionator: the prices come from it)
   if QoL.Get("deValue") and FLT.SkillUp and FLT.SkillUp.HasAuctionator() then
-    local v = QoL.DisenchantValue(id)
-    if v then tt:AddDoubleLine(L["Disenchant"], money(v), 1, 0.82, 0, 1, 1, 1); pcall(QoL.MoveUnderAuction, tt) end
+    pcall(QoL.DisenchantLine, tt, id)
   end
   if QoL.Get("bossDrops") then
     local drops = bossDrops(id)
@@ -2184,7 +2228,7 @@ local function addItemLines(tt, link)
   if QoL.Get("gearValue") and FLT.GearValue then FLT.GearValue.TooltipLine(tt, id, link) end
   -- on the wishlist (Armory > Gear Planner): always, it is the player's own choice (user 03.11.)
   if FLT.IsOnWishlist and FLT.GearValue and FLT.GearValue.WISH and FLT.IsOnWishlist(id) then tt:AddLine(FLT.GearValue.WISH .. L["Wishlist"], 1, 0.82, 0.25) end
-  if QoL.Get("sellJunk") and junkList()[id] then tt:AddLine(L["On your junk list (Alt+right-click to take it off)"], 0.62, 0.62, 0.62) end
+  if QoL.Get("sellJunk") and junkList()[id] then tt:AddLine(string.format(L["On your junk list (%s to take it off)"], QoL.JunkKeyText()), 0.62, 0.62, 0.62) end
   if FLT.CraftList then FLT.CraftList.TooltipLine(tt, id) end -- only while something is planned
   if QoL.Get("recipeTip") then
     local r = recipeByItem(id)
@@ -2342,12 +2386,14 @@ local TIP_POINT = { -- tooltip corner at the cursor, offset (the bottom ones kee
 }
 local function tipMouseOff()
   if not QoL.Get("tipMouse") then return true end
-  local inside, kind = IsInInstance and IsInInstance()
+  local inside, kind -- not "a, b = f and f()": the "and" keeps one value (kind was always nil, 6.2.12)
+  if IsInInstance then inside, kind = IsInInstance() end
   if not inside then return false end
   if (kind == "party" or kind == "raid" or kind == "scenario") and QoL.Get("tipMouseNoDungeon") then return true end
   if (kind == "pvp" or kind == "arena") and QoL.Get("tipMouseNoPvP") then return true end
   return false
 end
+QoL._tipMouseOff = tipMouseOff -- tests
 local function tipAtMouse(tt)
   local p = TIP_POINT[QoL.Get("tipMousePos") or "BOTTOMRIGHT"] or TIP_POINT.BOTTOMRIGHT
   local x, y = GetCursorPosition()
@@ -3330,12 +3376,17 @@ on("mapFog", function() if FLT.RefreshMapFog then FLT.RefreshMapFog() end end)
 on("mapFogAlpha", function() if FLT.RefreshMapFog then FLT.RefreshMapFog() end end)
 on("durability", function() warnedDurability = false; checkDurability() end)
 
--- Alt+right-click on an item in the bags: on / off the junk list (only while "Sell junk" is on). Bag buttons
--- (and bag addons) pass modified clicks to HandleModifiedItemClick; a right-click with Alt does not use the item.
+-- the junk click (default Alt + right-click, "Junk list key") on an item in the bags: on / off the junk list (only while
+-- "Sell junk" is on). Bag buttons (and bag addons) pass modified clicks to HandleModifiedItemClick; a click with a modifier
+-- does not use the item. The modifiers must match exactly (Ctrl + Alt + right-click is not Alt + right-click).
 if type(HandleModifiedItemClick) == "function" then
   hooksecurefunc("HandleModifiedItemClick", function(link)
-    if not QoL.Get("sellJunk") or not (IsAltKeyDown and IsAltKeyDown()) then return end
-    if not (GetMouseButtonClicked and GetMouseButtonClicked() == "RightButton") then return end
+    if not QoL.Get("sellJunk") then return end
+    local want = QoL.JUNK_KEYS[QoL.Get("junkKey")] or QoL.JUNK_KEYS["alt-right"]
+    local function down(fn) return fn and fn() and true or false end
+    if down(IsAltKeyDown) ~= (want.alt or false) or down(IsControlKeyDown) ~= (want.ctrl or false)
+      or down(IsShiftKeyDown) ~= (want.shift or false) then return end
+    if not (GetMouseButtonClicked and GetMouseButtonClicked() == want.b) then return end
     local id = type(link) == "string" and tonumber(link:match("item:(%d+)"))
     local count = id and ((C_Item and C_Item.GetItemCount and C_Item.GetItemCount(id)) or (GetItemCount and GetItemCount(id))) or 0
     if (count or 0) > 0 then QoL.ToggleJunk(link) end -- items in your bags only

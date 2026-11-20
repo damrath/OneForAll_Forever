@@ -469,6 +469,17 @@ local function padActive()
   return ok and type(ids) == "table" and #ids > 0
 end
 FLT.PadActive = padActive
+-- the controller drives the cursor right now (6.2.12-beta22, Discord nexneko 18.11.: "Keyboard + Mouse, no gamepad - cannot click
+-- on the sign post": GamePadEnable = 1 and some device that counts as a pad, so padActive() was true for a mouse player). A
+-- click on a map pin with a controller needs the game's controller cursor; without the function: padActive()
+function FLT.PadCursor()
+  if not padActive() then return false end
+  if IsGamePadCursorControlEnabled then
+    local ok, on = pcall(IsGamePadCursorControlEnabled)
+    if ok then return on and true or false end
+  end
+  return true
+end
 local function forceMap(mapID)
   -- the map is open already: only switch it (no panel shown from our code)
   if WorldMapFrame and WorldMapFrame:IsShown() and WorldMapFrame.SetMapID then

@@ -140,6 +140,49 @@ local function add(id, name, q, src, lvl, d)
   return e
 end
 
+-- Raids that are not in WoW Forever yet (6.2.12, Discord Dannie 18.11.2026: "a lot of 60 upgrades ... isnt out aka AQ40/20,
+-- zg crafts"): crafted items whose recipe or one of its reagents comes only from there are not suggested. Their quest rewards
+-- are left out by tools/quest-rewards/questrewards.lua (NOT_IN_FOREVER). When a raid opens: delete it in both places.
+local CLOSED = { ["Molten Core"] = true, ["Blackwing Lair"] = true, ["Zul'Gurub"] = true, ["Ruins of Ahn'Qiraj"] = true,
+  ["Temple of Ahn'Qiraj"] = true, ["Ahn'Qiraj"] = true, ["Naxxramas"] = true }
+local CLOSED_VENDORS = { [14921] = true } -- Rin'wosho the Trader (Zandalar Tribe, Zul'Gurub)
+-- raids in our data that open later: their loot and quests are suggested from that day on (server time; 9 December 2026
+-- 00:00 UTC, Blizzard's date for Onyxia, Hyjal Summit and Barrow Deeps; the index is built once per session)
+local RAID_OPENS = { ["Onyxia's Lair"] = 1796774400, ["Hyjal Summit"] = 1796774400, ["Barrow Deeps"] = 1796774400 }
+function FLT.RaidOpen(name)
+  local t = RAID_OPENS[name]
+  local now = t and GetServerTime and GetServerTime()
+  return not t or type(now) ~= "number" or now >= t
+end
+local closedReagent = {}
+local function reagentClosed(id)
+  local c = closedReagent[id]
+  if c ~= nil then return c end
+  local s = FLT.REAGENT_SOURCES and FLT.REAGENT_SOURCES[id]
+  c = false
+  if s and not (s.v or s.c or s.sk) then
+    local any, all = false, true
+    for _, n in ipairs(s.d or {}) do
+      local m = FLT.REAGENT_MOBS and FLT.REAGENT_MOBS[n]
+      any = true; if not (m and CLOSED[m[6]]) then all = false end
+    end
+    for _, z in ipairs(s.oz or {}) do any = true; if not CLOSED[z[5]] then all = false end end
+    c = any and all
+  end
+  closedReagent[id] = c
+  return c
+end
+function FLT.RecipeNotInForever(r) -- also for tests
+  local src, any, all = r.src, false, true
+  for _, list in ipairs({ src and src.v or {}, src and src.d or {} }) do
+    for _, w in ipairs(list) do any = true; if not (CLOSED_VENDORS[w[1]] or CLOSED[w[3]]) then all = false end end
+  end
+  if src and src.qs then all = false end
+  if any and all then return true end
+  for _, g in ipairs(r.r or {}) do if reagentClosed(g[1]) then return true end end
+  return false
+end
+
 -- Quest data (Data/QuestRewards.lua, QuestieDB Forever): parsed per quest on first use
 local SIDE = { Alliance = "A", Horde = "H" }
 local questCache = {}
@@ -211,6 +254,17 @@ end
 FLT.HOME_MAPS = { [1] = { [1429] = 1, [1453] = 1 }, [2] = { [1411] = 1, [1454] = 1 }, [3] = { [1426] = 1, [1455] = 1 },
   [4] = { [1438] = 1, [1457] = 1 }, [5] = { [1420] = 1, [1458] = 1 }, [6] = { [1412] = 1, [1456] = 1 },
   [7] = { [1426] = 1, [1455] = 1 }, [8] = { [1411] = 1, [1454] = 1 } }
+-- 6.2.12-beta21 (Discord Alfredowski 19.11.: "heroism sets, show me quests on ironforge instead of the horde side"): of several
+-- variants of a step only those of your faction and class (Saving the Best for Last: A Supernatural Device 8922 Deliana /
+-- 8923 Mokvar, An Earnest Proposition one per class); race as before (class quests)
+function FLT.QuestForMe(q)
+  if not q then return false end
+  local f = UnitFactionGroup and SIDE[UnitFactionGroup("player") or ""]
+  if f and q.side and q.side ~= "" and q.side ~= f then return false end
+  local cid = UnitClass and select(3, UnitClass("player"))
+  if cid and (q.cls or 0) > 0 and math.floor(q.cls / 2 ^ (cid - 1)) % 2 ~= 1 then return false end
+  return FLT.QuestForMyRace(q)
+end
 function FLT.IsHomeQuest(q, home)
   if home == nil then local id = UnitRace and select(3, UnitRace("player")); home = id and FLT.HOME_MAPS[id] end
   return home and q and q.loc and home[q.loc.mapID] and true or false
@@ -220,7 +274,7 @@ function FLT.QuestChain(qid, home) -- home: FLT.HOME_MAPS entry (default: your r
   local function walk(ids, depth)
     if #ids > 1 then
       local mine = {}
-      for _, id in ipairs(ids) do if FLT.QuestForMyRace(FLT.QuestInfo(id)) then mine[#mine + 1] = id end end
+      for _, id in ipairs(ids) do if FLT.QuestForMe(FLT.QuestInfo(id)) then mine[#mine + 1] = id end end
       if #mine > 0 then ids = mine end
       for i = 2, #ids do
         if FLT.IsHomeQuest(FLT.QuestInfo(ids[i]), home) then ids = { ids[i], unpack(ids) }; table.remove(ids, i + 1); break end
@@ -238,10 +292,43 @@ function FLT.QuestChain(qid, home) -- home: FLT.HOME_MAPS entry (default: your r
   walk({ qid }, 0)
   return steps
 end
+-- the hand-made dungeon quest chains (Data/DungeonQuestChains.lua) with a step of the other faction or another class, for a
+-- quest you can do (Dead Man's Plea 8945: written with the Alliance druid's steps - a Horde player or another class never
+-- finished it): built again from QuestieDB for this character, once at login
+local function fixPrereqChains()
+  local C, QR = FLT.QUEST_PREREQ_CHAINS, FLT.QUEST_REWARDS
+  if not (C and QR and QR.quests) then return end
+  for qid, chain in pairs(C) do
+    if QR.quests[qid] and FLT.QuestForMe(FLT.QuestInfo(qid)) then
+      local bad = false
+      for _, st in ipairs(chain) do
+        if st.id and QR.quests[st.id] and not FLT.QuestForMe(FLT.QuestInfo(st.id)) then bad = true; break end
+      end
+      if bad then
+        local new = {}
+        for _, ids in ipairs(FLT.QuestChain(qid)) do
+          local raw, q = QR.quests[ids[1]], FLT.QuestInfo(ids[1])
+          if ids[1] ~= qid then new[#new + 1] = { id = ids[1], name = raw and raw:match("^[^|]*") or (q and q.name) or "?" } end
+        end
+        if #new > 0 then C[qid] = new end
+      end
+    end
+  end
+end
+FLT._fixPrereqChains = fixPrereqChains -- tests
+do
+  local ev = CreateFrame("Frame")
+  ev:RegisterEvent("PLAYER_LOGIN")
+  ev:SetScript("OnEvent", function(self) self:UnregisterAllEvents(); fixPrereqChains() end)
+end
 local function buildIndex()
   index, byId = {}, {}
   if not GetItemInfoInstant then return end
+  local closedQuests = {} -- quests of raids that are not open yet: their rewards stay out of the quest list below too
   for _, d in ipairs(FLT.DUNGEONS or {}) do
+   if not FLT.RaidOpen(d.name) then
+    for _, qu in ipairs(d.quests or {}) do if qu.id then closedQuests[qu.id] = true end end
+   else
     local where = FLT.DungeonName and FLT.DungeonName(d.name) ~= d.name and FLT.DungeonName(d.name) or d.short or d.name
     for _, b in ipairs(d.bosses or {}) do
       for _, it in ipairs(b.loot or {}) do
@@ -268,9 +355,12 @@ local function buildIndex()
         end
       end
     end
+   end
   end
+  -- sets: only the ones you can get now (st 1); "source not known yet" (st 2, new Forever raid sets) and "not in Forever yet"
+  -- (st 0) are not suggested (6.2.12, Discord Dannie 18.11.)
   for _, s in ipairs(FLT.ARMORY_SETS or {}) do
-    if s.st ~= 0 then
+    if s.st == 1 then
       for _, it in ipairs(s.i or {}) do add(it[1], it[2], it[4], (type(it[6]) == "table" and it[6][1]) or s.n, s.lv) end
     end
   end
@@ -302,7 +392,7 @@ local function buildIndex()
     for id, req, qs, name in QR.items:gmatch("(%d+),(%d+),([%d/]+),([^\n]*)") do
       local pick
       for q in qs:gmatch("%d+") do
-        local info = FLT.QuestInfo(tonumber(q))
+        local info = not closedQuests[tonumber(q)] and FLT.QuestInfo(tonumber(q))
         if info and (not pick or (info.side == fac and pick.side ~= fac)) then pick = info end
       end
       if pick then
@@ -323,7 +413,7 @@ local function buildIndex()
     -- level ~ skill / 5 (300 skill ~ level 60), only used to skip items far above the level limit
     for _, r in ipairs(list) do
       local sk = r.req or r.y
-      if r.i then
+      if r.i and not FLT.RecipeNotInForever(r) then
         local e = add(r.i, r.n, r.q, L[prof] .. (sk and (" " .. sk) or ""), sk and math.floor(sk / 5) or nil)
         if e then e.prof, e.ps = prof, r.s end -- the profession button opens this recipe (6.0.2, user 31.10.)
       end

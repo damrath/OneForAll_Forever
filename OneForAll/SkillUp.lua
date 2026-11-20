@@ -62,6 +62,14 @@ function SU.Have(id)
   if CL and CL.Stock then return (CL.Stock(id, SU.NoAlts())) or 0 end
   return GetItemCount and GetItemCount(id, true) or 0
 end
+-- the switch "Don't use own materials" (6.2.12-beta19, user 18.11.: "damit nichts aus der bank oder den eigenen taschen
+-- verwendet wird", off by default): materials you have count as not there - the plan and the Profit shopping list buy or
+-- farm everything. Tools (rods, hammers) are not used up and still count (SU.Have).
+function SU.NoOwn() local d = type(OneForAllDB) == "table" and OneForAllDB.skillUp; return d and d.noOwn == true or false end
+function SU.HaveMat(id)
+  if SU.NoOwn() and not (FLT.TOOL_ITEMS and FLT.TOOL_ITEMS[id]) then return 0 end
+  return SU.Have(id)
+end
 
 -- Recipes ----------------------------------------------------------------------------------------------------------
 local function myFaction()
@@ -182,10 +190,17 @@ function SU.Profit(prof, onlyKnown)
   local craft, unit, byItem = makeCoster(prof, list, avail, {})
   SU.profitCtx = { unit = unit, byItem = byItem }
   local out = {}
+  -- why a list stays empty (6.2.12-beta17, user 18.11.: "im profit bei tailoring nichts drin? was mache ich gerade falsch?"):
+  -- how many products have an AH price, and how many of those also a price for every material
+  local stats = { checked = 0, priced = 0, costed = 0 }
+  SU.profitStats = stats
   for r in pairs(avail) do
+    stats.checked = stats.checked + 1
     local price = r.i and SU.AHPrice(r.i)
     if price then
+      stats.priced = stats.priced + 1
       local cost = craft(r)
+      if cost and cost > 0 then stats.costed = stats.costed + 1 end
       local sale0 = price * (r.c or 1) * (1 - SU.AH_CUT)
       if cost and cost > 0 and sale0 > cost then
         local sale = price * (r.c or 1) * (1 - SU.AH_CUT)
@@ -211,7 +226,7 @@ function SU.ProfitBuyList(picks)
   local function have(id)
     if not bags[id] then -- bags, bank and the other characters (6.2.7-beta2/4, user 13.11.: "twinks natuerlich auch")
       local CL = FLT.CraftList
-      bags[id] = CL and CL.Stock and (CL.Stock(id, SU.NoAlts())) or (CL and CL.InBags and CL.InBags(id)) or 0
+      bags[id] = SU.NoOwn() and 0 or CL and CL.Stock and (CL.Stock(id, SU.NoAlts())) or (CL and CL.InBags and CL.InBags(id)) or 0
     end
     return bags[id]
   end
@@ -376,7 +391,7 @@ function SU.Plan(prof, opts)
       local changed = false
       local newCover = {}
       for id, need in pairs(demand) do
-        local have = SU.Have(id)
+        local have = SU.HaveMat(id)
         local c = need > 0 and math.min(1, have / need) or 0
         newCover[id] = c
         if math.abs(c - (cover[id] or 0)) > 0.05 then changed = true end
@@ -422,6 +437,19 @@ local function toolFor(r, got)
   return owned or exact
 end
 
+-- buy an intermediate ready-made or craft it (6.2.12-beta18): OneForAllCharDB.skillUpPrep[prof][itemID] = "buy" / "craft";
+-- nil = the cheaper way
+function SU.PrepChoice(prof, id)
+  local d = type(OneForAllCharDB) == "table" and OneForAllCharDB.skillUpPrep
+  return type(d) == "table" and type(d[prof]) == "table" and d[prof][id] or nil
+end
+function SU.SetPrepChoice(prof, id, v)
+  if type(OneForAllCharDB) ~= "table" then return end
+  local d = type(OneForAllCharDB.skillUpPrep) == "table" and OneForAllCharDB.skillUpPrep or {}; OneForAllCharDB.skillUpPrep = d
+  d[prof] = type(d[prof]) == "table" and d[prof] or {}
+  d[prof][id] = (v == "buy" or v == "craft") and v or nil
+end
+
 function SU.Build(prof, segs, ctx)
   local _, unit, byItem = makeCoster(prof, ctx.list, ctx.avail, {})
   -- beta22 (user 12.11.: "die runed golden rod bringt auf jeden fall einen skillpunkt"): a runed rod the plan must make
@@ -452,9 +480,9 @@ function SU.Build(prof, segs, ctx)
   end
   local buffer = SU.Z90 * math.sqrt(totalV)
   local pool, mats, shop = {}, {}, {}
-  local function avail(id) if pool[id] == nil then pool[id] = SU.Have(id) end return pool[id] end
+  local function avail(id) if pool[id] == nil then pool[id] = SU.HaveMat(id) end return pool[id] end
   local plan = { prof = prof, from = ctx.from, to = ctx.to, steps = {}, shop = shop, mats = mats, cost = 0, recipeCost = 0,
-    trainCost = 0, resale = 0, expected = 0, safe = 0, guessed = false, feeUnknown = false, learned = {} }
+    trainCost = 0, resale = 0, expected = 0, safe = 0, guessed = false, feeUnknown = false, learned = {}, choices = {} }
   local learned = plan.learned -- recipes learned on the way (once)
   local tools = {} -- tool items the plan already has (owned or made / bought once)
   local ensureTool
@@ -477,7 +505,17 @@ function SU.Build(prof, segs, ctx)
       for _, g in ipairs(mk.r or {}) do local u = unit(g[1]); if not u then craftC = nil; break end craftC = craftC + u * g[2] end
       if craftC then craftC = craftC / (mk.c or 1) end
     end
-    if mustMake or (craftC and (not buy or craftC < buy)) then
+    local doCraft = mustMake or (craftC and (not buy or craftC < buy))
+    -- 6.2.12-beta18 (user 18.11.: "eine auswahl ... die fertigen bolt of mageweave zu kaufen. mit der differenz wie viel es
+    -- mehr kosten wuerde"): an intermediate that can be crafted and bought (auction house / vendor) is a choice - the cheaper
+    -- way unless the player picked the other one (SU.PrepChoice); plan.choices lists them with both unit prices
+    if craftC and buy and not mustMake and (src == "ah" or src == "vendor") then
+      local pick = SU.PrepChoice(prof, id)
+      if pick == "buy" then doCraft = false elseif pick == "craft" then doCraft = true end
+      local ch = plan.choices[id] or { id = id, n = 0, craftU = craftC, buyU = buy, src = src }; plan.choices[id] = ch
+      ch.n = ch.n + rest; ch.buying = not doCraft
+    end
+    if doCraft then
       -- beta31 (user 12.11.: "dann gilt das als ganzer Schritt"): the owned part is not a bag material any more, the prep
       -- counts all n it needs (total) against the bags (SU.PrepStatus)
       local crafts = math.ceil(rest / (mk.c or 1))

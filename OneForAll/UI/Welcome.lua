@@ -23,7 +23,7 @@ local PAGES = {
   { N"Interface", {
     { N"Farther camera zoom", N"Lets you zoom the camera out further.", "cameraZoom", rec = true },
     { N"Move Blizzard windows", N"Drag windows like the character window anywhere.", "moveWindows", rec = true },
-    { N"Resize Blizzard windows", N"Drag a window with the right mouse button to change its size.", "resizeWindows" }, -- user 01.11.
+    { N"Resize Blizzard windows", N"Hold Ctrl and drag a window with the right mouse button to change its size.", "resizeWindows" }, -- user 01.11.
     { N"Chat font size", N"The same font size for every chat window.", kind = "font" },
     { N"Logo color", N"The color of the OneForAll minimap button.", kind = "logo" },
     { N"Collect minimap buttons", N"Puts the minimap buttons of other addons into one bar.", "mmCollect", rec = true },

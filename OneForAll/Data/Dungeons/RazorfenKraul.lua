@@ -164,7 +164,6 @@ FLT.DUNGEON_REGISTRY["Razorfen Kraul"] = {
                 {274149, "Thornweaver Drape", "Back", 3},
                 {274152, "Roogug's Severed Head", "Trinket", 3},
                 {274155, "Geomancer Headdress", "Head, Leather", 3},
-                {252512, "Brawler's Leather Helm", "Head, Leather", 3},
             },
         },
         {
@@ -175,8 +174,6 @@ FLT.DUNGEON_REGISTRY["Razorfen Kraul"] = {
                 {274159, "Thorncursed Grips", "Hands, Leather", 3},
                 {6681, "Thornspike", "One-Hand, Dagger", 3},
                 {274158, "Death Prophet Spine", "Two-Hand, Staff", 3},
-                {252512, "Brawler's Leather Helm", "Head, Leather", 3},
-                {252455, "Defender's Leather Helm", "Head, Leather", 3},
             },
         },
         {
@@ -187,8 +184,6 @@ FLT.DUNGEON_REGISTRY["Razorfen Kraul"] = {
                 {2816, "Death Speaker Scepter", "Main Hand, Mace", 3},
                 {6685, "Death Speaker Mantle", "Shoulder, Cloth", 3},
                 {6682, "Death Speaker Robes", "Chest, Cloth", 3},
-                {252512, "Brawler's Leather Helm", "Head, Leather", 3},
-                {252515, "Wisdom's Leather Helm", "Head, Leather", 3},
             },
         },
         {
@@ -199,9 +194,6 @@ FLT.DUNGEON_REGISTRY["Razorfen Kraul"] = {
                 {6686, "Tusken Helm", "Head, Mail", 3},
                 {6687, "Corpsemaker", "Two-Hand, Axe", 3},
                 {274161, "Quillord Mail Leggings", "Legs, Mail", 3},
-                {252512, "Brawler's Leather Helm", "Head, Leather", 3},
-                {252513, "Trapper's Leather Helm", "Head, Leather", 3},
-                {252515, "Wisdom's Leather Helm", "Head, Leather", 3},
             },
         },
         {
@@ -212,9 +204,6 @@ FLT.DUNGEON_REGISTRY["Razorfen Kraul"] = {
                 {274160, "Quilrager Throwing Axe", "Thrown, Thrown", 3},
                 {6691, "Swinetusk Shank", "Main Hand, Dagger", 3},
                 {6690, "Ferine Leggings", "Legs, Leather", 3},
-                {252455, "Defender's Leather Helm", "Head, Leather", 3},
-                {252512, "Brawler's Leather Helm", "Head, Leather", 3},
-                {252513, "Trapper's Leather Helm", "Head, Leather", 3},
             },
         },
         {
@@ -234,8 +223,6 @@ FLT.DUNGEON_REGISTRY["Razorfen Kraul"] = {
             loot = {
                 {6688, "Whisperwind Headdress", "Head, Leather", 3},
                 {6689, "Wind Spirit Staff", "Two-Hand, Staff", 3},
-                {252455, "Defender's Leather Helm", "Head, Leather", 3},
-                {252514, "Stormrider's Leather Helm", "Head, Leather", 3},
             },
         },
         {
@@ -246,10 +233,6 @@ FLT.DUNGEON_REGISTRY["Razorfen Kraul"] = {
                 {6692, "Pronged Reaver", "One-Hand, Axe", 3},
                 {6693, "Agamaggan's Clutch", "Finger", 3},
                 {6694, "Heart of Agamaggan", "Off Hand, Shield", 3},
-                {252515, "Wisdom's Leather Helm", "Head, Leather", 3},
-                {252455, "Defender's Leather Helm", "Head, Leather", 3},
-                {252456, "Totemic Leather Helm", "Head, Leather", 3},
-                {252512, "Brawler's Leather Helm", "Head, Leather", 3},
             },
         },
     },
