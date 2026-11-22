@@ -90,6 +90,26 @@ local PROF_ICON = { Enchanting = "Interface\\Icons\\Trade_Engraving", Leatherwor
 local ARMOR_MAX = { WARRIOR = 4, PALADIN = 4, HUNTER = 3, SHAMAN = 3, ROGUE = 2, DRUID = 2, PRIEST = 1, MAGE = 1, WARLOCK = 1 }
 local SHIELD = { WARRIOR = true, PALADIN = true, SHAMAN = true }
 local DUAL_WIELD = { WARRIOR = true, ROGUE = true, HUNTER = true }
+-- "BiS List" (6.2.13-beta22, user 21.11.: lists from wowtbc.gg, Data/BisLists.lua): the specs of each class as the site has them
+-- (names = keys of FLT.BIS_LISTS, shown with L[...]), with an icon each; our talent tree name -> the list's spec
+local BIS_CLASSES = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
+local BIS_SPECS = {
+  WARRIOR = { { N"Arms", "Ability_Warrior_SavageBlow" }, { N"Fury", "Ability_Warrior_InnerRage" }, { N"Protection", "Ability_Warrior_DefensiveStance" } },
+  PALADIN = { { N"Holy", "Spell_Holy_HolyBolt" }, { N"Protection", "Spell_Holy_DevotionAura" }, { N"Retribution", "Spell_Holy_AuraOfLight" }, { N"Shockadin", "Spell_Holy_SearingLight" } },
+  HUNTER = { { N"Beast Mastery", "Ability_Hunter_BeastTaming" }, { N"Marksmanship", "Ability_Marksmanship" }, { N"Survival", "Ability_Hunter_SwiftStrike" } },
+  ROGUE = { { N"Assassination", "Ability_Rogue_Eviscerate" }, { N"Combat", "Ability_BackStab" }, { N"Subtlety", "Ability_Stealth" } },
+  PRIEST = { { N"Discipline", "Spell_Holy_WordFortitude" }, { N"Holy", "Spell_Holy_HolyBolt" }, { N"Shadow", "Spell_Shadow_ShadowWordPain" } },
+  SHAMAN = { { N"Elemental", "Spell_Nature_Lightning" }, { N"Enhancement", "Spell_Nature_LightningShield" }, { N"Restoration", "Spell_Nature_MagicImmunity" } },
+  MAGE = { { N"Arcane", "Spell_Holy_MagicalSentry" }, { N"Fire", "Spell_Fire_FireBolt02" }, { N"Frost", "Spell_Frost_FrostBolt02" } },
+  WARLOCK = { { N"Affliction", "Spell_Shadow_DeathCoil" }, { N"Demonology", "Spell_Shadow_Metamorphosis" }, { N"Destruction", "Spell_Shadow_RainOfFire" } },
+  DRUID = { { N"Balance", "Spell_Nature_StarFall" }, { N"Feral DPS", "Ability_Druid_CatForm" }, { N"Feral Tank", "Ability_Racial_BearForm" }, { N"Restoration", "Spell_Nature_HealingTouch" } },
+}
+local BIS_SPEC_ALIAS = { ["Feral Combat"] = "Feral DPS" }
+-- the list's slots in the order of the paper doll; rings and trinkets are two lists each there, shown as one group
+local BIS_SLOTS = { { "head", 1 }, { "neck", 2 }, { "shoulder", 3 }, { "back", 15 }, { "chest", 5 }, { "wrist", 9 }, { "hands", 10 },
+  { "waist", 6 }, { "legs", 7 }, { "feet", 8 }, { "finger1", 11, "finger2" }, { "trinket1", 13, "trinket2" }, { "weapon", 16 },
+  { "offhand", 17 }, { "ranged", 18 } }
+local BIS_PER_SLOT = 6 -- the BiS pick(s) and the first alternatives (lean: the site has 10 per slot)
 local RELIC = { PALADIN = 7, DRUID = 8, SHAMAN = 9 }
 local WEAPONS = { -- weapon subclass IDs
   WARRIOR = {0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 13, 15, 16, 18}, PALADIN = {0, 1, 4, 5, 6, 7, 8},
@@ -196,7 +216,7 @@ local function NM(s) return FLT.Name and FLT.Name(s) or s end
 function FLT.QuestInfo(qid)
   if not qid then return nil end
   local c = questCache[qid]
-  if c ~= nil then return c or nil end
+  if c ~= nil then return c and FLT._QuestSide(c) or nil end
   local raw = FLT.QUEST_REWARDS and FLT.QUEST_REWARDS.quests[qid]
   if not raw then
     -- class quests (Data/ClassQuests.lua, 5.7.3): "name|requiredLevel|race mask|one|all|giver|map|x|y"
@@ -222,7 +242,19 @@ function FLT.QuestInfo(qid)
     one = idList(t[6] or ""), all = idList(t[7] or ""), giver = t[8] ~= "" and NM(t[8]) or nil }
   local map = tonumber(t[9])
   if map then c.loc = { mapID = map, x = tonumber(t[10]), y = tonumber(t[11]) } end
+  -- 6.2.13-beta2 (Discord gullols 20.11.: Friend of the Library -> Owen Thadd in Undercity for an Alliance character): a quest
+  -- of both sides with a giver per faction carries the other one in fields 12-16; the giver of your faction is used
+  -- (chosen on every call, the cache is shared by both factions)
+  if t[13] and tonumber(t[14]) then
+    local other = { NM(t[13]), { mapID = tonumber(t[14]), x = tonumber(t[15]), y = tonumber(t[16]) } }
+    c.bySide = { [t[12]] = { c.giver, c.loc }, [t[12] == "A" and "H" or "A"] = other }
+  end
   questCache[qid] = c
+  return FLT._QuestSide(c)
+end
+function FLT._QuestSide(c)
+  local s = c.bySide and UnitFactionGroup and c.bySide[SIDE[UnitFactionGroup("player") or ""] or ""]
+  if s then c.giver, c.loc = s[1], s[2] end
   return c
 end
 -- where a quest starts: our checked dungeon quest starts (Map.lua) first, else QuestieDB
@@ -297,6 +329,13 @@ end
 -- finished it): built again from QuestieDB for this character, once at login
 local function fixPrereqChains()
   local C, QR = FLT.QUEST_PREREQ_CHAINS, FLT.QUEST_REWARDS
+  -- 6.2.13-beta1: a hand-made step with an own quest per faction ({ id = <Horde>, alliance = <Alliance> } or horde = ...)
+  -- becomes the step of your faction (Into the Depths / Secret of the Circle: The Sunken Temple 3380 / 3445)
+  local fac = UnitFactionGroup and UnitFactionGroup("player")
+  if C and (fac == "Alliance" or fac == "Horde") then
+    local k = fac == "Alliance" and "alliance" or "horde"
+    for _, chain in pairs(C) do for _, st in ipairs(chain) do if st[k] then st.id = st[k] end end end
+  end
   if not (C and QR and QR.quests) then return end
   for qid, chain in pairs(C) do
     if QR.quests[qid] and FLT.QuestForMe(FLT.QuestInfo(qid)) then
@@ -421,10 +460,50 @@ local function buildIndex()
   end
 end
 FLT.GearIndex = function(rebuild) if rebuild or not index then buildIndex() end return index, byId end
+-- "Cheap Upgrades" (6.2.13-beta17): the Bind on Equip gear of Data/BoeItems.lua as list entries (built once, when first shown)
+local function money(c) if FLT.QoL and FLT.QoL.Money then return FLT.QoL.Money(math.floor((c or 0) + 0.5)) end return tostring(c) end
+local cheapIdx, cheapGen
+local function boeEntry(id, lvl)
+  local _, _, _, loc, icon, cid, sub = GetItemInfoInstant(id)
+  if not (loc and loc ~= "" and not SKIP_LOC[loc] and LOC_SLOTS[loc]) then return nil end
+  local sk = FLT.BOE_SKILL and FLT.BOE_SKILL[id] -- a profession skill (engineering goggles ..., 6.2.13-beta18)
+  return { id = id, lvl = lvl, req = lvl > 0 and lvl or nil, loc = loc, icon = icon, cid = cid, sub = sub,
+    skProf = sk and sk[1], skRank = sk and sk[2] }
+end
+-- 6.2.13-beta19: plus one entry per random bonus ("of the Eagle") the last Cheap Upgrade Scan saw (e.link, e.vprice); rebuilt after
+-- every scan (AHScan.gen)
+local function cheapIndex()
+  local AS = FLT.AHScan
+  local gen = AS and AS.gen or 0
+  if cheapIdx and cheapGen == gen then return cheapIdx end
+  cheapIdx, cheapGen = {}, gen
+  local t = FLT.BOE_ITEMS or {}
+  for i = 1, #t - 1, 2 do cheapIdx[#cheapIdx + 1] = boeEntry(t[i], t[i + 1]) end
+  t = AS and FLT.BOE_RANDOM or {}
+  for i = 1, #t - 1, 2 do
+    local vs = AS.Variants(t[i])
+    local base = vs and boeEntry(t[i], t[i + 1])
+    if base then
+      for _, v in ipairs(vs) do
+        local e = {}
+        for k, x in pairs(base) do e[k] = x end
+        e.link, e.vprice = v.link, v.p
+        cheapIdx[#cheapIdx + 1] = e
+      end
+    end
+  end
+  return cheapIdx
+end
+-- the character has the profession skill an item needs (saved by the profession scan, UI/ProfessionRecipes.lua)
+local function skillOK(e)
+  if not e.skProf then return true end
+  local p = type(OneForAllCharDB) == "table" and type(OneForAllCharDB.professions) == "table" and OneForAllCharDB.professions[e.skProf]
+  return p and (p.skill or 0) >= (e.skRank or 0) or false
+end
 
 -- required level / item level: from the game when it has the item, else the source level
 local function reqLevel(e)
-  local name, _, q, ilvl, minLevel = GetItemInfo(e.id)
+  local name, _, q, ilvl, minLevel = GetItemInfo(e.link or e.id) -- with the bonus name ("... of the Eagle")
   if name then e.name, e.q, e.ilvl, e.req = name, q or e.q, ilvl, minLevel end
   return e.req or e.lvl or 0
 end
@@ -437,6 +516,7 @@ local function wishlist()
 end
 function FLT.IsOnWishlist(id) return id and wishlist()[id] and true or false end
 function FLT.ToggleWishlist(id)
+  if not id then return false end
   local w = wishlist()
   if w[id] then w[id] = nil else w[id] = true end
   return w[id] and true or false
@@ -674,7 +754,7 @@ function UI.CreateGearPlanner(parent)
   reset:SetScript("OnClick", loadModel)
   reset:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine(L["Reset"]); GameTooltip:AddLine(L["Shows your own gear again. Right-click an item in the list to try it on, scroll on the character to zoom, drag it to turn it."], 1, 1, 1, true); GameTooltip:Show() end)
   reset:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  f.tryOn = function(id) if model.TryOn then pcall(model.TryOn, model, "item:" .. id) end end
+  f.tryOn = function(id) if model.TryOn then pcall(model.TryOn, model, type(id) == "string" and id or ("item:" .. id)) end end
   local slotButtons = {}
   local function slotButton(s, x, y, anchor)
     local b = CreateFrame("Button", nil, left); b:SetSize(38, 38); b:SetPoint(anchor, x, y)
@@ -808,24 +888,47 @@ function UI.CreateGearPlanner(parent)
   -- RIGHT: tabs, search, list ------------------------------------------------------
   local right = CreateFrame("Frame", nil, f); right:SetPoint("TOPLEFT", 358, 0); right:SetPoint("BOTTOMRIGHT")
   local tabs = {}
-  local function tabButton(key, label, x)
-    local b = UI.GoldButton(right, L[label], 92, 26); b:SetPoint("TOPLEFT", x, -10)
+  local function tabButton(key, label, x, w)
+    local b = UI.GoldButton(right, L[label], w or 92, 26); b:SetPoint("TOPLEFT", x, -10)
     b:SetScript("OnClick", function() tab = key; for k, o in pairs(tabs) do o:SetActive(k == tab) end; refreshList() end)
     tabs[key] = b
   end
   tabButton("suggest", N"Suggested", 12)
+  -- "Cheap Upgrades" (6.2.13-beta17, user 21.11.: "guenstige items die eine verbesserung fuer das gear bringen aus dem AH scan"):
+  -- Bind on Equip gear (Data/BoeItems.lua) with an Auctionator price up to prefs.cheapMax silver (50 to start), best gain first.
+  -- (made before "Wishlist" - the place comes from x; t_gear clicks the buttons in the order they were made)
+  tabButton("cheap", N"Cheap Upgrades", 204, 128)
+  -- "BiS List" (6.2.13-beta22, user 21.11.: in place of the warning sign, which went - "das brauchen wir nicht mehr")
+  tabButton("bis", N"BiS List", 336, 70)
   tabButton("wish", N"Wishlist", 108)
+  for _, k in ipairs({ "cheap", "bis" }) do local m = UI.NewMark(tabs[k], L["New in this version."]); m:SetPoint("CENTER", tabs[k], "TOPRIGHT", -2, -2) end -- 6.2.13 (TODO.md "Neu-Markierungen")
   tabs.suggest:SetActive(true)
-  -- what the suggestions are (and are not), user 16.10.
-  local warn = CreateFrame("Frame", nil, right); warn:SetSize(22, 22); warn:SetPoint("LEFT", tabs.wish, "RIGHT", 8, 0)
-  local wt = warn:CreateTexture(nil, "ARTWORK"); wt:SetAllPoints(); FLT.SetTex(wt, UI.ASSET_ROOT .. "icon_warning")
-  warn:EnableMouse(true)
-  warn:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine(L["Suggestions only"], 1, 0.82, 0)
-    GameTooltip:AddLine(L["No BiS list or simulated values. Only suggestions based on weighted stats for your talent spec."], 1, 1, 1, true)
+  -- Cheap Upgrades: how old the prices are (6.2.13-beta20, user 21.11.: "ein hinweis mit last scan"), above the tab (beta22)
+  local scanInfo = CreateFrame("Frame", nil, right); scanInfo:SetSize(200, 12); scanInfo:SetPoint("BOTTOM", tabs.cheap, "TOP", 0, 3)
+  scanInfo.text = newText(scanInfo, "GameFontDisableSmall"); scanInfo.text:SetPoint("CENTER"); scanInfo.text:SetJustifyH("CENTER")
+  scanInfo:EnableMouse(true)
+  scanInfo:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine(L["Cheap Upgrade Scan"], 1, 0.82, 0)
+    GameTooltip:AddLine(L["Click \"Cheap Upgrade Scan\" in the auction house for fresh prices. Scans older than 3 days are not used - then the prices come from Auctionator."], 1, 1, 1, true)
     GameTooltip:Show()
   end)
-  warn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  scanInfo:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  local function showScanInfo(on)
+    scanInfo:SetShown(on)
+    if not on then return end
+    -- like the Skill-Up Helper and Profit (SU.ScanText): green within the hour, else red (user 21.11.: "Zeile sollte dann gruen sein")
+    local AS = FLT.AHScan
+    local age = AS and AS.Age()
+    local t
+    if not age then t = "|cffff5050" .. L["Last auction house scan: never"] .. "|r"
+    else
+      local m = math.max(0, math.floor(age / 60))
+      t = m < 60 and string.format(L["Last auction house scan: %d min ago"], m)
+        or (m < 2880 and string.format(L["Last auction house scan: %d h ago"], math.floor(m / 60)) or string.format(L["Last auction house scan: %d days ago"], math.floor(m / 1440)))
+      t = (m < 60 and "|cff40ff60" or "|cffff5050") .. t .. "|r"
+    end
+    scanInfo.text:SetText(t)
+  end
 
   -- source filter (5.7.3, user 23.10.; several at once + Crafted since 6.0.2, user 31.10.): prefs.gearSources =
   -- { boe = true, quest = true, ... }, empty / nil = all sources. BoE comes from the client's item data (bind type 2),
@@ -984,7 +1087,6 @@ function UI.CreateGearPlanner(parent)
   end
   srcBtn:SetScript("OnClick", function(self) UI.OpenCascadeMenu(self, buildFilter, pickFilter, 180) end)
   paintSource()
-  do local m = UI.NewMark(srcBtn, L["New: armor and weapon type filter."]); m:SetPoint("CENTER", srcBtn, "TOPRIGHT", 0, 0) end -- 6.2.x (TODO.md "Neu-Markierungen")
   -- your professions (crafted items: Bind on Pickup only from your own, user 31.10.)
   local myProfs = {}
   local function readProfessions()
@@ -1018,7 +1120,7 @@ function UI.CreateGearPlanner(parent)
 
   local box = FLT.SkinBlizz(CreateFrame("EditBox", nil, right, "InputBoxTemplate"))
   -- search and the level row end flush with the list below (right edge -32, user 16.10.)
-  box:SetHeight(20); box:SetPoint("TOPLEFT", 262, -13); box:SetPoint("TOPRIGHT", -32, -13); box:SetAutoFocus(false)
+  box:SetHeight(20); box:SetPoint("TOPLEFT", 16, -76); box:SetPoint("TOPRIGHT", -32, -76); box:SetAutoFocus(false)
   if box.SetTextInsets then box:SetTextInsets(0, 22, 0, 0) end
   local hint = FLT.NewFS(box, nil, "OVERLAY", "GameFontDisableSmall"); hint:SetPoint("LEFT", 4, 0); hint:SetText(L["Search all items..."])
   local clear = UI.GoldButton(right, "X", 20, 18, nil, 10); clear:SetPoint("RIGHT", box, "RIGHT", -1, 0); clear:Hide()
@@ -1030,6 +1132,35 @@ function UI.CreateGearPlanner(parent)
   box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
   box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
   f.searchBox = box
+  -- "Cheap Upgrades": the highest price (prefs.cheapMax, 50 silver to start - user 21.11.), right of the search box;
+  -- the button behind it switches silver / gold (prefs.cheapGold, 6.2.13-beta18 - user 21.11.: "umschalter mit Gold/Silber")
+  local unitBtn = UI.GoldButton(right, L["Silver"], 54, 20, nil, 11); unitBtn:SetPoint("TOPRIGHT", -32, -76)
+  local priceBox = FLT.SkinBlizz(CreateFrame("EditBox", nil, right, "InputBoxTemplate"))
+  priceBox:SetSize(46, 20); priceBox:SetPoint("RIGHT", unitBtn, "LEFT", -6, 0); priceBox:SetAutoFocus(false); priceBox:SetNumeric(true)
+  priceBox:SetMaxLetters(5); priceBox:SetJustifyH("CENTER")
+  local priceLabel = newText(right, "GameFontNormalSmall", nil, GOLD); priceLabel:SetPoint("RIGHT", priceBox, "LEFT", -8, 0)
+  priceLabel:SetText(L["Max price"])
+  local function cheapMax() return prefs.cheapMax or 50 end
+  local function cheapCopper() return cheapMax() * (prefs.cheapGold and 10000 or 100) end
+  unitBtn._label:SetText(prefs.cheapGold and L["Gold"] or L["Silver"])
+  -- the same price in the other unit (50 silver -> 1 gold, 2 gold -> 200 silver)
+  unitBtn:SetScript("OnClick", function(self)
+    local c = cheapCopper(); prefs.cheapGold = not prefs.cheapGold or nil
+    prefs.cheapMax = math.min(99999, math.max(1, math.floor(c / (prefs.cheapGold and 10000 or 100) + 0.5)))
+    self._label:SetText(prefs.cheapGold and L["Gold"] or L["Silver"]); priceBox:SetText(tostring(cheapMax())); refreshList()
+  end)
+  local function setPrice(self)
+    local v = tonumber(self:GetText() or ""); prefs.cheapMax = (v and v > 0) and v or nil
+    self:SetText(tostring(cheapMax())); self:ClearFocus(); refreshList()
+  end
+  priceBox:SetScript("OnEnterPressed", setPrice); priceBox:SetScript("OnEditFocusLost", function(self) self:SetText(tostring(cheapMax())) end)
+  priceBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+  priceBox:SetText(tostring(cheapMax()))
+  local function showPrice(on)
+    priceBox:SetShown(on); priceLabel:SetShown(on); unitBtn:SetShown(on)
+    box:ClearAllPoints(); box:SetPoint("TOPLEFT", 16, -76)
+    if on then box:SetPoint("RIGHT", priceLabel, "LEFT", -12, 0) else box:SetPoint("TOPRIGHT", -32, -76) end
+  end
 
   -- "All slots" on Suggested (6.2.3): the 3 best upgrades of every slot; a slot click shows that slot again
   suggestAllBtn = UI.GoldButton(right, L["All slots"], 70, 22, nil, 11); suggestAllBtn:SetPoint("TOPLEFT", 12, -44)
@@ -1040,7 +1171,6 @@ function UI.CreateGearPlanner(parent)
     GameTooltip:Show()
   end)
   suggestAllBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  do local m = UI.NewMark(suggestAllBtn, L["New in this version."]); m:SetPoint("CENTER", suggestAllBtn, "TOPRIGHT", -2, -2) end -- 6.2.x (TODO.md "Neu-Markierungen")
   local title = newText(right, "GameFontNormal", 150, GOLD); title:SetPoint("TOPLEFT", 90, -48)
   if title.SetWordWrap then title:SetWordWrap(false) end
   -- mouseover: what the list shows and every chosen source (the line itself may be cut off)
@@ -1159,12 +1289,126 @@ function UI.CreateGearPlanner(parent)
   local line = UI.makeTexture(right, "ARTWORK", 0.72, 0.50, 0.12, 0.45); line:SetPoint("TOPLEFT", 12, -72); line:SetPoint("TOPRIGHT", -12, -72); line:SetHeight(1)
 
   local sf = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, right, "UIPanelScrollFrameTemplate"))
-  sf:SetPoint("TOPLEFT", 12, -80); sf:SetPoint("BOTTOMRIGHT", -30, 10)
+  sf:SetPoint("TOPLEFT", 12, -104); sf:SetPoint("BOTTOMRIGHT", -30, 10)
   -- rows follow the scroll area's width (fixed 480 was wider than the area and cut the cards off, beta4)
   local child = CreateFrame("Frame", nil, sf); child:SetSize(400, 1); sf:SetScrollChild(child)
   sf:SetScript("OnSizeChanged", function(_, w) if w and w > 0 then child:SetWidth(w) end end)
   UI.AutoHideScrollBar(sf)
   local empty = newText(right, "GameFontDisable", 380); empty:SetPoint("TOP", 0, -110); empty:SetJustifyH("CENTER"); empty:SetWordWrap(true)
+
+  -- "BiS List" (6.2.13-beta22): a crest per class, under it the specs of that class (like the class trainer window); your class
+  -- and spec are picked at first. bisView = { class, spec } of this session; the list is "Pre Raid" for now (more later).
+  local bisView, bisCache = {}, {}
+  local CLASS_TEX = "Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"
+  local function crest(parent, size, x, y)
+    local b = CreateFrame("Button", nil, parent); b:SetSize(size, size); b:SetPoint("TOPLEFT", x, y)
+    b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetPoint("TOPLEFT", 3, -3); b.icon:SetPoint("BOTTOMRIGHT", -3, 3)
+    b.ring = b:CreateTexture(nil, "OVERLAY"); b.ring:SetAllPoints(); FLT.SetTex(b.ring, UI.ASSET_ROOT .. "talent_frame")
+    local hl = b:CreateTexture(nil, "HIGHLIGHT"); FLT.SetTex(hl, UI.ASSET_ROOT .. "talent_frame"); hl:SetAllPoints(); hl:SetBlendMode("ADD")
+    hl:SetVertexColor(FLT.SkinC(1, 0.86, 0.40, 0.85)); b:SetHighlightTexture(hl)
+    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    return b
+  end
+  local function paintCrest(b, on)
+    b.icon:SetAlpha(on and 1 or 0.6); FLT.Desat(b.icon, not on)
+    if on then b.ring:SetVertexColor(FLT.SkinC(1, 0.84, 0.36, 1)) else b.ring:SetVertexColor(FLT.SkinC(0.55, 0.42, 0.22, 1)) end
+  end
+  local function classLabel(token) return (type(LOCALIZED_CLASS_NAMES_MALE) == "table" and LOCALIZED_CLASS_NAMES_MALE[token]) or token end
+  local bisClassBtns, bisSpecBtns = {}, {}
+  for i, token in ipairs(BIS_CLASSES) do
+    local b = crest(right, 30, 12 + (i - 1) * 33, -42)
+    b.icon:SetTexture(CLASS_TEX)
+    local tc = type(CLASS_ICON_TCOORDS) == "table" and CLASS_ICON_TCOORDS[token]
+    if tc then local dx, dy = (tc[2] - tc[1]) * 0.06, (tc[4] - tc[3]) * 0.06; b.icon:SetTexCoord(tc[1] + dx, tc[2] - dx, tc[3] + dy, tc[4] - dy) end
+    b:SetScript("OnClick", function() bisView.class, bisView.spec = token, nil; sf:SetVerticalScroll(0); refreshList() end)
+    b:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(classLabel(token), 1, 0.82, 0); GameTooltip:Show() end)
+    b:Hide(); bisClassBtns[token] = b
+  end
+  for i = 1, 4 do
+    local b = crest(right, 24, 12 + (i - 1) * 28, -78)
+    b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    b:SetScript("OnClick", function(self) bisView.spec = self.spec; sf:SetVerticalScroll(0); refreshList() end)
+    b:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L[self.spec], 1, 0.82, 0); GameTooltip:Show() end)
+    b:Hide(); bisSpecBtns[i] = b
+  end
+  local bisTitle = newText(right, "GameFontNormal", 135, GOLD)
+  -- which list: a drop-down with "Pre Raid" as the only list for now (6.2.13-beta23, user 21.11.: "verdeutlicht dass da noch mehr
+  -- kommt"; the raid list follows once wowtbc.gg has one)
+  local bisSrc = UI.GoldButton(right, L["Pre Raid"], 112, 22, nil, 11); bisSrc:SetPoint("TOPRIGHT", -32, -79)
+  do local arrow = bisSrc:CreateTexture(nil, "OVERLAY"); arrow:SetSize(12, 12); arrow:SetPoint("RIGHT", -8, 0)
+    FLT.SetTex(arrow, UI.ASSET_ROOT .. "chevron"); arrow:SetTexCoord(0, 0.5, 0, 1) end
+  bisSrc:SetScript("OnClick", function(self)
+    GameTooltip:Hide()
+    UI.OpenDropDown(self, { { key = "preraid", label = L["Pre Raid"] } }, "preraid", function() refreshList() end)
+  end)
+  bisSrc:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT"); GameTooltip:AddLine(L["BiS List"], 1, 0.82, 0)
+    GameTooltip:AddLine(L["The best items per slot before raids (\"Pre Raid\") from wowtbc.gg's WoW Forever BiS lists, checked daily. BiS = their pick for the slot, the others are good alternatives. More lists come later."], 1, 1, 1, true)
+    GameTooltip:Show()
+  end)
+  bisSrc:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  -- the list entries of a class and spec (made once each): our item entry (sources, maps) under a small wrapper with the slot
+  -- group and the BiS mark, so nothing of the shared entry changes
+  local function bisEntries(token, spec, ids)
+    local key = token .. ":" .. spec
+    if bisCache[key] then return bisCache[key] end
+    local out, lists = {}, FLT.BIS_LISTS and FLT.BIS_LISTS[token] and FLT.BIS_LISTS[token][spec]
+    local data = lists and lists.preraid
+    if data then
+      for _, sl in ipairs(BIS_SLOTS) do
+        local seen, n, picks, alts = {}, 0, {}, {}
+        for _, k in ipairs({ sl[1], sl[3] }) do
+          for _, id in ipairs(data[k] or {}) do
+            if id < 0 then picks[#picks + 1] = -id else alts[#alts + 1] = id end
+          end
+        end
+        for pass, t in ipairs({ picks, alts }) do
+          for _, id in ipairs(t) do
+            if not seen[id] and n < BIS_PER_SLOT then
+              seen[id] = true; n = n + 1
+              local base = ids[id]
+              if not base then
+                local _, _, _, loc, icon, cid, sub = GetItemInfoInstant(id)
+                base = { id = id, loc = loc, icon = icon, cid = cid, sub = sub }; ids[id] = base
+              end
+              out[#out + 1] = setmetatable({ bisSlot = sl[2], bis = pass == 1 or nil, noValue = token ~= f.class or nil }, { __index = base })
+            end
+          end
+        end
+      end
+    end
+    bisCache[key] = out
+    return out
+  end
+  -- shows the class / spec pickers (and hides the controls of the other tabs) - returns the spec shown
+  local function showBis(on)
+    for _, b in pairs(bisClassBtns) do b:SetShown(on) end
+    bisTitle:SetShown(on); bisSrc:SetShown(on)
+    box:SetShown(not on); title:SetShown(not on)
+    if not on then for _, b in ipairs(bisSpecBtns) do b:Hide() end clear:SetShown(search ~= ""); return nil end
+    clear:Hide(); srcBtn:Hide(); suggestAllBtn:Hide(); showRange(false); clearBtn:Hide(); allSlotsBtn:Hide()
+    local token = bisView.class or f.class or "WARRIOR"
+    if not BIS_SPECS[token] then token = "WARRIOR" end
+    bisView.class = token
+    local specs = BIS_SPECS[token]
+    if not bisView.spec then
+      -- your spec at first (the talent tree with most points), else the first one
+      local mine = token == f.class and FLT.GearValue and FLT.GearValue.SpecName and FLT.GearValue.SpecName()
+      mine = mine and (BIS_SPEC_ALIAS[mine] or mine)
+      for _, sp in ipairs(specs) do if sp[1] == mine then bisView.spec = mine end end
+      bisView.spec = bisView.spec or specs[1][1]
+    end
+    for t, b in pairs(bisClassBtns) do paintCrest(b, t == token) end
+    local last
+    for i, b in ipairs(bisSpecBtns) do
+      local sp = specs[i]
+      b:SetShown(sp and true or false)
+      if sp then b.spec = sp[1]; b.icon:SetTexture("Interface\\Icons\\" .. sp[2]); paintCrest(b, sp[1] == bisView.spec); last = b end
+    end
+    bisTitle:ClearAllPoints(); bisTitle:SetPoint("LEFT", last, "RIGHT", 10, 0)
+    bisTitle:SetText(L[bisView.spec] .. " " .. classLabel(token))
+    return bisView.spec
+  end
 
   local rows = {}
   local function row(i)
@@ -1232,7 +1476,7 @@ function UI.CreateGearPlanner(parent)
     r.chain:SetScript("OnClick", function() FLT.ShowQuestChain(r.e.qid) end)
     r.chain:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine(L["Quest chain"], 1, 0.82, 0)
-      GameTooltip:AddLine(string.format(L["%d quests up to this reward. Click to see them all."], self.steps), 1, 1, 1, true); GameTooltip:Show()
+      GameTooltip:AddLine(string.format(L["%d quests up to this reward. Click to see them all."], self.steps or 0), 1, 1, 1, true); GameTooltip:Show()
     end)
     r.chain:SetScript("OnLeave", function() GameTooltip:Hide() end)
     r.name = newText(r, "GameFontHighlight"); r.name:SetPoint("TOPLEFT", 44, -5)
@@ -1245,6 +1489,11 @@ function UI.CreateGearPlanner(parent)
     r.sub._ofaNoAnchor = true -- the tooltip goes right after the item name, not after the long source line (user 16.10.)
     r:SetScript("OnEnter", function(self)
       local e = self.e
+      if e.link then -- a bonus variant from the Cheap Upgrade Scan: its own stats
+        if H.anchorItemTooltip then H.anchorItemTooltip(self) else GameTooltip:SetOwner(self, "ANCHOR_RIGHT") end
+        if not pcall(GameTooltip.SetHyperlink, GameTooltip, e.link) then GameTooltip:AddLine(e.name or (L["Item"] .. " " .. e.id)) end
+        GameTooltip:Show(); return
+      end
       if H.tryShowItemTooltip and H.tryShowItemTooltip(self, { id = e.id, name = e.name, quality = e.q }) then return end
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
       if not pcall(GameTooltip.SetHyperlink, GameTooltip, "item:" .. e.id) then GameTooltip:AddLine(e.name or (L["Item"] .. " " .. e.id)) end
@@ -1259,7 +1508,12 @@ function UI.CreateGearPlanner(parent)
     -- (user 16.10.); the buttons there still work and have their own tooltips
     r:SetHitRectInsets(0, 100, 0, 0)
     r:SetScript("OnClick", function(self, button)
-      if button == "RightButton" then f.tryOn(self.e.id); return end
+      if button == "RightButton" then f.tryOn(self.e.link or self.e.id); return end
+      if self.e.link then -- Shift-click links the variant itself
+        local _, full = GetItemInfo(self.e.link)
+        if full and HandleModifiedItemClick then HandleModifiedItemClick(full) end
+        return
+      end
       if H.handleDungeonItemClick then H.handleDungeonItemClick({ id = self.e.id, name = self.e.name, quality = self.e.q }, button) end
     end)
     rows[i] = r
@@ -1415,14 +1669,18 @@ function UI.CreateGearPlanner(parent)
     srcBtn:SetShown(not (enchMode and search == ""))
     -- the "All slots" button is only on Suggested; the title starts after it there
     local sa = not enchMode and tab ~= "wish" and search == ""
+    showPrice(tab == "cheap"); showScanInfo(tab == "cheap")
     suggestAllBtn:SetShown(sa); title:ClearAllPoints(); title:SetPoint("TOPLEFT", sa and 90 or 16, -48); title:SetWidth(sa and 150 or 170)
-    if enchMode and search == "" then refreshEnchants(); return end
+    local bis = tab == "bis"
+    if not bis then showBis(false) end
+    if enchMode and search == "" and not bis then refreshEnchants(); return end
     for _, r in ipairs(erows) do r:Hide() end
     local idx, ids = FLT.GearIndex()
     local cls = f.class
     local minLevel, maxLevel = range()
     if maxLevel >= MAX_LEVEL then maxLevel = 999 end
     paintRange()
+    local bisSpec = bis and showBis(true)
     local w = sf:GetWidth(); if w and w > 0 then child:SetWidth(w) end
     wipe(list)
     local slotName = SW(SLOT_NAME[selected]) or ""
@@ -1431,7 +1689,10 @@ function UI.CreateGearPlanner(parent)
     suggestAllBtn:SetActive(allSlots)
     local function fits(e) for _, s in ipairs(LOC_SLOTS[e.loc] or {}) do if s == selected then return true end end return false end
     local function offhandOK(e) return allSlots or selected ~= 17 or e.loc ~= "INVTYPE_WEAPON" or DUAL_WIELD[cls] end
-    if search ~= "" then
+    if bis then
+      allSlots = false
+      for _, e in ipairs(bisEntries(bisView.class, bisSpec, ids)) do list[#list + 1] = e end
+    elseif search ~= "" then
       title:SetText(L["Search: all slots"])
       for _, e in ipairs(idx) do
         if (e.name or ""):lower():find(search, 1, true) and sourceOK(e) then list[#list + 1] = e; if #list >= 100 then break end end
@@ -1463,9 +1724,24 @@ function UI.CreateGearPlanner(parent)
       -- does not have yet are asked from the server per pass; the others wait for the next pass (the Armory redraws when
       -- items arrive). Items the server does not know (a failed load) are left out.
       local budget, isCached, failed, waiting = 120, C_Item and C_Item.IsItemDataCachedByID, FLT.ItemLoadFailed, false
-      for _, e in ipairs(idx) do
-        local ask = (allSlots or fits(e)) and offhandOK(e) and usable(e, cls, 60) and armorOK(e) and weaponOK(e) and (e.lvl or 0) <= maxLevel and sourceOK(e)
-          and not (failed and failed[e.id])
+      -- "Cheap Upgrades": Bind on Equip gear with a known auction price (Auctionator) up to the highest price; the source filter
+      -- does not apply there (they are all from the auction house), the armor / weapon type filters do
+      local cheap, SU, AS = tab == "cheap", FLT.SkillUp, FLT.AHScan
+      local maxCopper = cheapCopper()
+      local pool = cheap and cheapIndex() or idx
+      -- prices: the Cheap Upgrade Scan when it is less than 3 days old (then an item missing in it is not on sale), else Auctionator's
+      local ours = cheap and AS and AS.Age() and AS.Age() < 259200
+      local best = cheap and {} -- one row per item and bonus name (two bonus lists can give the same "of the Eagle")
+      for _, e in ipairs(pool) do
+        local ask = (allSlots or fits(e)) and offhandOK(e) and usable(e, cls, 60) and armorOK(e) and weaponOK(e) and (e.lvl or 0) <= maxLevel
+          and (cheap or sourceOK(e)) and not (failed and failed[e.id]) and (not cheap or skillOK(e))
+        if ask and cheap then
+          local pr
+          if e.link then pr = ours and e.vprice or nil
+          elseif ours then pr = AS.Price(e.id)
+          else pr = SU and SU.AHPrice and SU.AHPrice(e.id) end
+          if pr and pr <= maxCopper then e.price = pr; e.src = "|cffffd27f" .. L["Auction house"] .. ":|r " .. money(pr) else ask = false end
+        end
         if ask and isCached and not isCached(e.id) then
           local n = asked[e.id] or 0
           if n >= 3 then ask = false
@@ -1476,8 +1752,21 @@ function UI.CreateGearPlanner(parent)
           local lv = reqLevel(e)
           if e.qreq and e.qreq > lv then lv = e.qreq end -- quest rewards: not before the quest can be taken
           -- no required level (0) counts as level 1, else the low items fell out of a "1 - x" range (6.0.2, user 31.10.)
-          if lv <= maxLevel and math.max(lv, 1) >= minLevel then list[#list + 1] = e end
+          if lv <= maxLevel and math.max(lv, 1) >= minLevel then
+            list[#list + 1] = e
+            if best and e.link then
+              local key = e.id .. ":" .. (GetItemInfo(e.link) or e.link)
+              if not best[key] or e.price < best[key].price then best[key] = e end
+            end
+          end
         end
+      end
+      if best and next(best) then
+        local n = 0
+        for _, e in ipairs(list) do
+          if not e.link or best[e.id .. ":" .. (GetItemInfo(e.link) or e.link)] == e then n = n + 1; list[n] = e end
+        end
+        for i = #list, n + 1, -1 do list[i] = nil end
       end
       -- items still waiting: one more pass in 2 s, in case none of the asked ones arrives (no event, no redraw)
       if waiting and not nextPass and C_Timer and C_Timer.After then
@@ -1493,18 +1782,19 @@ function UI.CreateGearPlanner(parent)
         if judgedGen ~= GV.gen then wipe(judged); judgedGen = GV.gen end
         local n, later = 0, false
         for _, e in ipairs(list) do
-          local j = judged[e.id]
+          local jk = e.link or e.id -- a bonus variant has its own Value
+          local j = judged[jk]
           if j == nil then
-            local kind = GV.Change(e.id)
-            if kind == "up" or kind == "new" then local _, d = GV.Upgrade(e.id); j = d or 0
+            local kind = GV.Change(e.id, e.link)
+            if kind == "up" or kind == "new" then local _, d = GV.Upgrade(e.id, e.link); j = d or 0
             elseif kind then j = false -- judged: no upgrade
-            elseif GV.Upgrade(e.id) then later = true -- the item has a Value, the WORN gear's data is not there yet
+            elseif GV.Upgrade(e.id, e.link) then later = true -- the item has a Value, the WORN gear's data is not there yet
             elseif GetItemInfo(e.id) then j = false end -- no Value for us (kept only once the CLIENT has the item's data)
             -- (6.2.11-beta22, Discord Mith / Canadian Crippler 17.11.: "e.name" is our own data's name and always there, so
             -- every item the client had not loaded yet after a /reload was kept as "no upgrade" - dungeon items gone)
             -- (6.2.11, Discord floatinghead7 17.11.: with one worn item still loading, everything was judged "no upgrade"
             -- and kept until gear or spec changed - Timbermaw tunic missing, only Hand of Justice for a trinket)
-            if j ~= nil then judged[e.id] = j end
+            if j ~= nil then judged[jk] = j end
           end
           if j then e.delta = j; n = n + 1; list[n] = e end
         end
@@ -1540,14 +1830,14 @@ function UI.CreateGearPlanner(parent)
       for i = #list, 61, -1 do list[i] = nil end
     end
     local short = shortNames()
-    titleHover.head = (search == "" and tab ~= "wish") and string.format(L["Suggested: %s"], allSlots and L["all slots"] or slotName) or title:GetText()
+    titleHover.head = (search == "" and tab ~= "wish") and string.format(L[tab == "cheap" and N"Cheap Upgrades: %s" or N"Suggested: %s"], allSlots and L["all slots"] or slotName) or title:GetText()
     titleHover.sources = short
     if short then title:SetText(title:GetText() .. "  |cffb0b0b0" .. short .. "|r") end
     for _, r in ipairs(rows) do r:Hide() end
     for _, h in ipairs(heads) do h:Hide() end
     local y, nh, lastSlot = -2, 0, nil
     for i, e in ipairs(list) do
-      local slot = (allSlots or tab == "wish" and prefs.wishAll) and (LOC_SLOTS[e.loc] or {})[1]
+      local slot = bis and e.bisSlot or (allSlots or tab == "wish" and prefs.wishAll) and (LOC_SLOTS[e.loc] or {})[1]
       if slot and slot ~= lastSlot then
         lastSlot = slot; nh = nh + 1
         local h = head(nh); h:ClearAllPoints(); h:SetPoint("TOPLEFT", 0, y - (nh > 1 and 4 or 0)); h:SetPoint("RIGHT", child, "RIGHT", -2, 0)
@@ -1564,6 +1854,7 @@ function UI.CreateGearPlanner(parent)
       local lv = e.req or e.lvl
       if e.qreq and (lv or 0) < e.qreq then lv = e.qreq end
       local parts = {}
+      if e.bis then parts[1] = "|cffff8000" .. L["BiS"] .. "|r" end -- the list's pick for the slot (BiS List)
       if lv and lv > 0 then parts[#parts + 1] = string.format(L[e.req and N"lvl %d" or N"lvl ~%d"], lv) end
       if search ~= "" then parts[#parts + 1] = SW(SLOT_NAME[(LOC_SLOTS[e.loc] or {})[1]]) or "" end
       if e.src then parts[#parts + 1] = e.src end
@@ -1576,7 +1867,7 @@ function UI.CreateGearPlanner(parent)
       if e.dq then hasMap = nil end -- a dungeon quest: the dungeon swirl opens the quest in Dungeons & Raids (user 09.11.)
       r.map:SetShown(hasMap and true or false)
       r.go:SetShown(d and not hasMap and steps <= 1 and true or false)
-      if r.go:IsShown() and r.go.raid ~= (d.raid and true or false) then
+      if d and r.go:IsShown() and r.go.raid ~= (d.raid and true or false) then
         r.go.raid = d.raid and true or false
         local atlas = r.go.raid and "raid" or "dungeon"
         for _, t in ipairs({ r.go.tex, r.go.hl }) do if t.SetAtlas then pcall(t.SetAtlas, t, atlas) end end
@@ -1585,8 +1876,10 @@ function UI.CreateGearPlanner(parent)
       local crafted = e.prof and not d and not e.qid
       r.pro:SetShown(crafted and true or false)
       if crafted then FLT.SetTex(r.pro.tex, FLT.PROFESSION_ICONS and FLT.PROFESSION_ICONS[e.prof] or "Interface\\Icons\\INV_Misc_QuestionMark") end
-      local kind, pct
-      if FLT.GearValue then kind, pct = FLT.GearValue.Change(e.id) end
+      local kind, pct, wornThere
+      if FLT.GearValue and not e.noValue then kind, pct, _, _, _, _, _, _, wornThere = FLT.GearValue.Change(e.id, e.link) end
+      -- 6.2.13-beta9: something worn there without Value (a caster's plain armor) - "+x %" of the gear, not "new"
+      if kind == "new" and wornThere and pct then kind = "up" end
       if kind == "up" then r.val:SetText("|cff40ff40+" .. FLT.GearValue.Pct(pct) .. "%|r")
       elseif kind == "down" then r.val:SetText("|cffff5050-" .. FLT.GearValue.Pct(pct) .. "%|r")
       elseif kind == "new" then r.val:SetText("|cff40ff40" .. L["new"] .. "|r")
@@ -1595,7 +1888,15 @@ function UI.CreateGearPlanner(parent)
       r.star:SetItem(e.id)
     end
     child:SetHeight(math.max(1, -y))
-    if #list == 0 then
+    if #list == 0 and bis then
+      empty:SetText(L["No BiS list for this spec yet."]); empty:Show()
+    elseif #list == 0 and tab == "cheap" and search == "" then
+      local SU = FLT.SkillUp
+      local AS = FLT.AHScan
+      empty:SetText(not (SU and SU.HasAuctionator and SU.HasAuctionator()) and not (AS and AS.Data()) and L["Needs auction house prices: click \"Cheap Upgrade Scan\" in the auction house (or use Auctionator)."]
+        or string.format(L["No cheap upgrade up to %s for this in your level range.\nClick \"Cheap Upgrade Scan\" in the auction house for fresh prices, or raise the highest price."], money(cheapCopper())))
+      empty:Show()
+    elseif #list == 0 then
       empty:SetText(short and (tab ~= "wish" and search == "" and FLT.GearValue
           and string.format(L["No upgrade among the \"%s\" items for this slot in your level range.\nOnly items better than what you wear (for your spec) are listed.\nThe filter button is next to the Wishlist tab."], short)
           or string.format(L["Nothing here with the source filter \"%s\".\nThe filter button is next to the Wishlist tab."], short)) or search ~= "" and L["No item found."] or L[tab == "wish" and (prefs.wishAll and N"Your wishlist is empty.\nClick the star on an item to add it." or N"Your wishlist has no item for this slot yet.\nClick the star on an item to add it.") or (allSlots and N"No upgrade for any slot in your level range yet." or FLT.GearValue and N"No upgrade for this slot in your level range yet." or N"No item from our data fits this slot and level yet.")])
@@ -1622,6 +1923,8 @@ local WEIGHT_STATS = {
   { "dpsmelee", N"Weapon DPS (main hand)" }, { "dpsoh", N"Weapon DPS (off hand)" },
   { "speed", N"Weapon speed (main hand)" }, { "speedoh", N"Weapon speed (off hand)" },
   { "dps", N"Weapon DPS (ranged, wand)" }, { "wskill", N"Weapon Skill (per 1 %)" }, { "hit", N"Hit (per 1 %)" }, { "crit", N"Crit (per 1 %)" },
+  { "haste", N"Haste (per 1 %)" }, { "exp", N"Expertise" }, -- 6.2.13: Geared Forever weights both
+  { "spen", N"Spell Penetration" },
   { "sp", N"Spell Power" }, { "heal", N"Healing" }, { "mp5", N"Mana per 5 sec." }, { "armor", N"Armor" },
   { "def", N"Defense" }, { "dodge", N"Dodge (per 1 %)" }, { "parry", N"Parry (per 1 %)" }, { "block", N"Block (per 1 %)" },
   { "bv", N"Block Value" }, { "fire", N"Fire Spell Damage" }, { "frost", N"Frost Spell Damage" },
@@ -1634,7 +1937,7 @@ function UI.ShowWeightEditor(onChange)
   local GV = FLT.GearValue; if not GV then return end
   if not editor then
     local f = CreateFrame("Frame", "OneForAllWeightEditor", UIParent)
-    f:SetSize(560, 590); f:SetPoint("CENTER", 0, 30); f:SetFrameStrata("FULLSCREEN_DIALOG")
+    f:SetSize(560, 640); f:SetPoint("CENTER", 0, 30); f:SetFrameStrata("FULLSCREEN_DIALOG") -- 6.2.13: 39 stats in 2 columns
     f:EnableMouse(true); f:SetMovable(true); f:RegisterForDrag("LeftButton"); f:SetClampedToScreen(true)
     f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing)
     if UISpecialFrames then table.insert(UISpecialFrames, "OneForAllWeightEditor") end

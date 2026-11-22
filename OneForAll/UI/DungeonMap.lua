@@ -209,6 +209,19 @@ function UI.CreateDungeonMap(parent)
       p.disc:Hide(); p.ring:Hide(); p:SetSize(42, 42)
       p:SetScript("OnClick", nil)
     end
+    -- numbered marks (Data/DungeonMapExtras.lua, 6.2.13-beta13, user 20.11.: the Sunken Temple statues 1-6 "ohne symbol"):
+    -- the number on the dark disc, no ring and no icon
+    local mk = m.marks
+    for _, e in ipairs(mk or {}) do
+      n = n + 1
+      local p = pin(n); p:Show()
+      p.u, p.v = e[2], e[3]
+      p.title = mk.title and string.format(L[mk.title], e[1]) or e[1]
+      p.tip = mk.tip and L[mk.tip] or nil
+      p.icon:Hide(); p.label:SetText(""); if p.boss then p.boss:Hide() end
+      p.ring:Hide(); p.disc:Show(); p.num:Show(); p.num:SetText(e[1]); p:SetSize(20, 20)
+      p:SetScript("OnClick", nil)
+    end
     note:SetText(#(m.bosses or {}) == 0 and L["Boss positions are not known yet for this dungeon."] or "")
     layout()
   end

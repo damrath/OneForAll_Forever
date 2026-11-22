@@ -33,11 +33,27 @@ function SU.VendorPrice(id)
   if seen and seen[id] then return seen[id] end
   return FLT.VENDOR_PRICES and FLT.VENDOR_PRICES[id] or nil
 end
-local function vendorSells(id) return (FLT.VENDOR_REAGENTS and FLT.VENDOR_REAGENTS[id]) or (FLT.VENDOR_PRICES and FLT.VENDOR_PRICES[id]) end
--- price to buy one: vendor (if a vendor sells it), else auction house, else a rough guess (4x the vendor sell price)
+-- 6.2.13-beta3 (Discord Graham / gieq 20.11.: Peacebloom at 42c, Kingsblood at Maria Lumere - those vendors have 2-3 in stock;
+-- user 20.11.: "die haendler mit begrenzter stueckzahl ... nicht erscheinen lassen"): a reagent every vendor has only in a
+-- limited stock (Data/ProfessionFees.lua VENDOR_LIMITED, or seen so at a merchant) is never planned from a vendor;
+-- merchantLimited[id] = true (only seen limited) / "u" (a merchant without a limit was seen - wins)
+function SU.VendorLimited(id)
+  local seen = seenDB("merchantLimited")
+  local s = seen and seen[id]
+  if s ~= nil then return s == true end
+  return FLT.VENDOR_LIMITED and FLT.VENDOR_LIMITED[id] or false
+end
+local function vendorSells(id)
+  return ((FLT.VENDOR_REAGENTS and FLT.VENDOR_REAGENTS[id]) or (FLT.VENDOR_PRICES and FLT.VENDOR_PRICES[id])) and not SU.VendorLimited(id)
+end
+-- price to buy one: the cheaper of vendor and auction house, else a rough guess (4x the vendor sell price).
+-- 6.2.13-beta2 (Discord _emgi 19.11.: the guide sent him to a vendor for 63 Lesser Magic Essence at 8s - the vendor has one
+-- in stock, the auction house sells it for 1s 91c): the vendor only wins when it is not dearer than the auction house
+-- (vendors with a limited stock are not known from the data)
 function SU.BuyPrice(id)
-  if vendorSells(id) then local v = SU.VendorPrice(id); if v then return v, "vendor" end end
+  local v = vendorSells(id) and SU.VendorPrice(id) or nil
   local p = SU.AHPrice(id)
+  if v and (not p or v <= p) then return v, "vendor" end
   if p then return p, "ah" end
   local sell = GetItemInfo and select(11, GetItemInfo(id))
   if type(sell) == "number" and sell > 0 then return sell * 4, "guess" end
@@ -799,7 +815,12 @@ function SU.ReadMerchant()
     local id = GetMerchantItemID and GetMerchantItemID(i)
     if not id and GetMerchantItemLink then local l = GetMerchantItemLink(i); id = l and tonumber(l:match("item:(%d+)")) end
     if id and w[id] then
-      local _, _, price, qty, _, _, _, extended = GetMerchantItemInfo(i)
+      local _, _, price, qty, avail, _, _, extended = GetMerchantItemInfo(i)
+      if type(avail) == "number" then -- -1 = no limit, else the stock left
+        OneForAllDB.merchantLimited = OneForAllDB.merchantLimited or {}
+        local ml = OneForAllDB.merchantLimited
+        if avail < 0 then ml[id] = "u" elseif ml[id] ~= "u" then ml[id] = true end
+      end
       if type(price) == "number" and price > 0 and not extended then
         OneForAllDB.merchantPrices = OneForAllDB.merchantPrices or {}
         OneForAllDB.merchantPrices[id] = math.floor(price / math.max(1, tonumber(qty) or 1) + 0.5)

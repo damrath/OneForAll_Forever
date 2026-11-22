@@ -17,23 +17,28 @@ local NEWS_AUTO = true -- set true (and a new NEWS_ID) for the next release with
 -- 6.2.10 (user 16.11.): the new dungeon pictures and the armor / weapon type filter - NOT shown automatically.
 -- 6.2.12 (user 19.11.): Guild Games with special thanks to Gaelda, Ritter Roulade and Deaders, and "Smaller changes"
 -- (Skill-Up changes, low level quests, walking routes) - shown automatically once.
-local NEWS_ID = "6.2.12"
+-- 6.2.13 (user 21.11.): BiS List, Cheap Upgrades with the Cheap Upgrade Scan, the new stat weights - shown automatically once.
+local NEWS_ID = "6.2.13"
 
 -- images (optional): pictures in a row under the lines, each { tex, shown width, shown height, texcoord right,
 -- texcoord bottom } (made by tools/art/proc_news.py from the user's screenshots in source_images/news)
 -- qol = the Quality of Life group the button opens; shot = a screenshot behind a "Show me" button (user 09.11.):
 -- { texture, shown width, shown height, texcoord right, texcoord bottom } (tools/art/proc_news.py)
 local NEWS = {
-  { icon = "Interface\\Icons\\INV_Misc_Bone_HumanSkull_01", title = N"Guild Games", tab = "qol", qol = "guild", button = N"Open Quality of Life",
+  { icon = "Interface\\Icons\\INV_Sword_39", title = N"BiS List", tab = "armory", button = N"Open Armory",
     lines = {
-      N"Play Death Roll, High / Low and Tic Tac Toe with your guildmates, with or without a gold stake (the stake is only written down - you trade the gold yourselves).",
-      N"Switch it on under Quality of Life > Guild. Open the window there, from the info bar, with /ofa play or with your own key binding.",
-      N"Special thanks to Gälda, Ritter Roulade and Deaders for testing!",
+      N"Armory > Gear Planner > BiS List: the best items per slot before raids for every class and spec, from the WoW Forever BiS lists of wowtbc.gg.",
+      N"Your class and spec are picked at first, and every item shows where you get it. More lists will follow.",
     } },
-  { icon = "Interface\\Icons\\INV_Misc_Gear_01", title = N"Smaller changes",
+  { icon = "Interface\\Icons\\INV_Misc_Coin_02", title = N"Cheap Upgrades", tab = "armory", button = N"Open Armory",
     lines = {
-      N"Skill-Up Helper: buy bolts, leather and other intermediates ready-made or craft them (with the cost difference), and the switch \"Don't use own materials\".",
-      N"World Map: low level (grey) quests can be shown again, and the walking routes of quest givers can be hidden (Quality of Life > World Map).",
+      N"Armory > Gear Planner > Cheap Upgrades: Bind on Equip gear from the auction house that improves your gear, up to a highest price you set.",
+      N"Click \"Cheap Upgrade Scan\" in the auction house: it reads all auctions, also items with a random bonus (\"of the Eagle\"), each with its own price.",
+    } },
+  { icon = "Interface\\Icons\\INV_Misc_Spyglass_02", title = N"New stat weights", tab = "qol", qol = "tips", button = N"Open Quality of Life",
+    lines = {
+      N"The Gear Value uses new stat weights for every class and spec (from Geared Forever).",
+      N"Quality of Life > Tooltips > \"Gear Value shows\": the change for your whole gear, item against item, or both.",
     } },
 }
 

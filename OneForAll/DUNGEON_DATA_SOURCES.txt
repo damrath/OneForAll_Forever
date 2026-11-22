@@ -223,6 +223,14 @@ Generated with tools/armory-gen/armory.py:
   positions): Forever Simple World Map 0.30.2 by Tarolg (MIT, used with the author's
   agreement; see THIRD_PARTY_LICENSES.txt), extracted with
   tools/dungeon-maps/fwm_maps.lua. The pictures are the client's minimap images.
+- 2026-11-20 (OneForAll 6.2.13): maps of The Drowned City, Blackmaw Hold, Alcaz
+  Prison, Shaper's Terrace and Krol'dok Stronghold from Forever Simple World Map
+  0.79.3 (All Rights Reserved, used with Tarolg's agreement), with
+  tools/dungeon-maps/fwm_add.lua.
+- 2026-11-20 (OneForAll 6.2.13): entrances of Alcaz Prison, The Drowned City and
+  Krol'dok Stronghold and the order of the six Atal'ai statues in the Sunken
+  Temple: positions read off another addon's map pictures in the user's
+  screenshots and fitted onto our maps (Data/DungeonMapExtras.lua; approximate).
 
 2026-11-08 New Forever dungeons after launch (OneForAll 6.2.1)
 ===============================================================================

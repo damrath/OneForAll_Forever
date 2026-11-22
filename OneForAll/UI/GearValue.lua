@@ -412,8 +412,12 @@ function GV.Upgrade(id, link)
     base = wornValue(slot); cover = { slot }
   end
   if not base then return v end
+  -- 7th value (6.2.13-beta9, user 20.11.: warlock, every item "slot empty"): something IS worn there - its Value is just 0
+  -- (Geared Forever gives casters no armor weight, so plain white armor counts nothing)
+  local wornThere = false
+  for _, s in ipairs(cover or {}) do if GetInventoryItemLink("player", s) then wornThere = true end end
   -- the delta is the item alone; 6th value: what set bonuses add / take on top (shown as an own tooltip line)
-  return v, v - base, false, base, replaced, setDelta(id, cover)
+  return v, v - base, false, base, replaced, setDelta(id, cover), wornThere
 end
 
 -- the Value of everything worn, active set bonuses included; nil while an item has no data yet
@@ -450,21 +454,24 @@ local function kindOf(d, tot)
   return "same"
 end
 function GV.Change(id, link)
-  local v, d, equipped, base, replaced, sd = GV.Upgrade(id, link)
+  local v, d, equipped, base, replaced, sd, wornThere = GV.Upgrade(id, link)
   if not v then return nil end
   if equipped then return "worn" end
   if not d then return nil end
   local tot = gearTotal()
   if not base or base <= 0 then
     -- nothing (of Value) worn there: "new", with the % when there is other gear to compare with
+    -- 9th value: an item is worn there, it only has no Value (not "slot empty")
     if v <= 0 then return "same" end
-    return "new", tot and tot > 0 and v / tot * 100 or nil
+    return "new", tot and tot > 0 and v / tot * 100 or nil, nil, nil, nil, nil, nil, nil, wornThere
   end
   if not tot or tot <= 0 then return nil end
   local kind, pct = kindOf(d, tot)
   local sKind, sPct
   if sd and sd ~= 0 then sKind, sPct = kindOf(d + sd, tot) end
-  return kind, pct, kind == "up" and replaced or nil, sKind, sPct, sd
+  -- 7th / 8th value (6.2.13): the same change in % of the replaced item (QoL "Gear Value shows": item against item / both)
+  return kind, pct, kind == "up" and replaced or nil, sKind, sPct, sd, math.abs(d) / base * 100,
+    sd and sd ~= 0 and math.abs(d + sd) / base * 100 or nil
 end
 
 -- own arrows (tools/art/arrows.py); the client's Arrow-Up-Up was tiny and odd in the tooltip (beta10)
@@ -480,26 +487,32 @@ GV.WISH = OFA .. "|T" .. ASSET .. "icon_star:16:16:0:0:64:64:0:64:0:64:255:209:6
 function GV.TooltipLine(tt, id, itemLink)
   local _, _, _, loc, _, cid, sub = GetItemInfoInstant(id)
   if not (loc and FLT.GEAR_LOC_SLOTS and FLT.GEAR_LOC_SLOTS[loc]) or not FLT.GearCanUse(loc, cid, sub) then return end
-  local kind, pct, slot, sKind, sPct, sd = GV.Change(id, itemLink)
+  local kind, pct, slot, sKind, sPct, sd, iPct, siPct, wornThere = GV.Change(id, itemLink)
+  local mode = FLT.QoL and FLT.QoL.Get and FLT.QoL.Get("gvMode") or "overall"
   -- with two slots (rings, trinkets, dual wield): which worn item it is compared with (user 17.10.)
   -- only for upgrades: a downgrade replaces nothing (user 22.10.)
   local link = kind == "up" and slot and GetInventoryItemLink("player", slot)
   local which = link and link:match("%[(.-)%]")
   which = which and ("  |cffb0b0b0" .. string.format(L["(replaces %s)"], which) .. "|r") or ""
-  local function line(k, p, extra)
-    if k == "up" then tt:AddLine(UP .. string.format(L["Upgrade: %s%%"], GV.Pct(p)) .. extra, 0.25, 1, 0.25)
-    elseif k == "down" then tt:AddLine(DOWN .. string.format(L["Downgrade: %s%%"], GV.Pct(p)) .. extra, 1, 0.3, 0.3) end
+  -- ip: % of the replaced item; mode "item" shows it instead, "both" first with the whole gear's in brackets (6.2.13)
+  local function line(k, p, extra, ip)
+    local shown, more = p, ""
+    if ip and mode == "item" then shown = ip
+    elseif ip and mode == "both" then shown, more = ip, " " .. string.format(L["(overall %s%%)"], GV.Pct(p)) end
+    if k == "up" then tt:AddLine(UP .. string.format(L["Upgrade: %s%%"], GV.Pct(shown)) .. more .. extra, 0.25, 1, 0.25)
+    elseif k == "down" then tt:AddLine(DOWN .. string.format(L["Downgrade: %s%%"], GV.Pct(shown)) .. more .. extra, 1, 0.3, 0.3) end
   end
   if kind == "new" then
-    if pct then line("up", pct, "  |cffb0b0b0" .. L["(slot empty)"] .. "|r")
-    else tt:AddLine(UP .. L["Upgrade (slot empty)"], 0.25, 1, 0.25) end
+    -- no "item against item" here: against a Value of 0 there is no %; the whole gear's % when there is one
+    if pct then line("up", pct, "  |cffb0b0b0" .. (wornThere and L["(worn item has no value for you)"] or L["(slot empty)"]) .. "|r")
+    else tt:AddLine(UP .. (wornThere and L["Upgrade (worn item has no value for you)"] or L["Upgrade (slot empty)"]), 0.25, 1, 0.25) end
     return
   end
-  line(kind, pct, which)
+  line(kind, pct, which, iPct)
   -- set bonuses (6.2.2, user 09.11.): a second line with the bonus it loses / completes, e.g. green "Upgrade: 8%" and
   -- red "Downgrade: 5% (set bonus lost)" - the item itself is better, worn now it costs the bonus
   if sKind then
-    line(sKind, sPct, "  |cffb0b0b0" .. (sd < 0 and L["(set bonus lost)"] or L["(with set bonus)"]) .. "|r")
+    line(sKind, sPct, "  |cffb0b0b0" .. (sd < 0 and L["(set bonus lost)"] or L["(with set bonus)"]) .. "|r", siPct)
   end
 end
 

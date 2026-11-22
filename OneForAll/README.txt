@@ -71,6 +71,53 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 Changelog (newest first)
 ========================
 
+6.2.13 - BiS List, Cheap Upgrades, new stat weights and many fixes
+==================================================================
+Armory
+- New tab "BiS List" in the Gear Planner: the WoW Forever "Pre Raid" BiS lists of wowtbc.gg for every class and spec - pick a
+  class and a spec (yours at first), the items per slot with their sources, the BiS pick marked. More lists will follow.
+- New tab "Cheap Upgrades": Bind on Equip gear from the auction house that improves your gear, up to a highest price you set
+  (silver or gold), best gain first; per slot or "All slots", with the level, armor and weapon filters. Gear that needs a
+  profession skill only shows when you have it. The search box moved one row down; the warning sign next to the tabs is gone.
+- New button "Cheap Upgrade Scan" on the Buy page of the auction house: scans the whole auction house (once every 15 minutes)
+  and keeps the cheapest price of every Bind on Equip piece of gear - items with a random bonus ("of the Eagle") each with
+  their own price and stats. A chat line when it is done; Cheap Upgrades show how old the last scan is. Without a scan the
+  prices come from Auctionator. Switch: Quality of Life > Loot & Vendors.
+- Gear Value: new stat weights from Geared Forever by fistedwaffles05 (built for WoW Forever, GPL-3) for every class, spec and
+  level; Haste, Expertise and Spell Penetration count now (also in the own weights editor). A worn item without value is no
+  longer "slot empty".
+- Quality of Life: "Gear Value shows" - Whole gear (as before), Item against item, or Both ("65% (overall 6%)").
+
+Quality of Life
+- New entry "Miscellaneous" with "Skip the talk at service NPCs" (vendor, bank, trainer, flight master, auctioneer, stable
+  master, guild bank, tabard vendor, battlemaster - "All" at the top; all off at first; also found by searching "gossip"),
+  flight times, camera zoom, hiding error messages, thanking for buffs and all chat options (the "Chat" entry is gone).
+- Move Blizzard windows: a window whose saved place is off the screen is put back onto it; the full screen world map stays in
+  the middle.
+- Quicker loot: no longer loops with full bags (the game froze or disconnected while the loot window stayed open), and works
+  with the auto loot key set to "None". The Bags full helper no longer moves on every check, and loot worth exactly as much
+  as the cheapest item in your bags is no longer offered for a swap (thanks to emzime for finding the loop).
+- Buff reminder: the buff list is per character now. Sell junk also sells from the reagent bag.
+- With Leatrix Plus the OneForAll button follows the logo color. Only this version's new options keep a yellow "!".
+
+Dungeons & quests
+- Dungeon maps for The Drowned City, Blackmaw Hold, Alcaz Prison, Shaper's Terrace and Krol'dok Stronghold (from Forever
+  Simple World Map by Tarolg, with his agreement), the entrances of Alcaz Prison, The Drowned City and Krol'dok Stronghold,
+  and the Sunken Temple statues numbered 1-6 in the order they must be used. Krol'dok Stronghold's entrance moved to the
+  real spot (Riverglades 37.5, 39.0).
+- Quest data from the newest QuestieDB: about 130 new quests on the world map, corrected quest givers and quest item drops;
+  quests the game no longer offers are left out; Image of Archmage Modera for both factions.
+- Sunken Temple: the Alliance quest chain for Alliance characters; Scarlet Monastery Library: "In the Name of the Light";
+  Friend of the Library shows the giver of your faction. "Share all Quests" shares one quest per click.
+- Map Landmarks: 7 more ley lines from players' reports.
+
+Professions & books
+- Skill-Up Helper / Profit: no reagents from vendors with a limited stock (WoW Forever's vendor data), a vendor only when it
+  is not dearer than the auction house, the 1 hour transmutes count as cooldowns; the price note no longer lies under the
+  column heads.
+- A profession you dropped or changed is forgotten again.
+- Library Books: books marked by hand count in the set totals; two Eastern Plaguelands locations corrected.
+
 6.2.12 - Guild Games, Skill-Up buy or craft, hunter pet ranks from the game and many fixes
 ==========================================================================================
 Special thanks to Deaders for testing this version, and to Gälda, Ritter Roulade and Deaders for testing the Guild Games.

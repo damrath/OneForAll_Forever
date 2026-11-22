@@ -1523,7 +1523,6 @@ local function createDungeonPanel(parent)
       eye.iconGap=0 -- no text: the plate centres the icon on every redraw (else it moved left after a click)
       if eye.icon then eye.icon:ClearAllPoints(); eye.icon:SetSize(18,18); eye.icon:SetPoint("CENTER",0,0); eye.icon:SetTexCoord(showAll and 0 or 0.5,showAll and 0.5 or 1,0,1) end
       eye:SetActive(showAll)
-      do local m=UI.NewMark(eye,L["New in this version."]); m:SetPoint("CENTER",eye,"TOPRIGHT",-2,-2) end -- 6.2.x (TODO.md "Neu-Markierungen")
       eye:SetScript("OnClick",function()
         if type(OneForAllCharDB)=="table" then OneForAllCharDB.dqShowAll=not showAll or nil end
         questSelection[d.key]=1; GameTooltip:Hide(); renderQuests(d)

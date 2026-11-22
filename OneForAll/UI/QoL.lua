@@ -15,20 +15,10 @@ local openDropDown -- below
 -- Yellow "!" (tooltip "New") next to options added since the last live release.
 -- Kept for all versions of a minor line (5.7.0 ... 5.7.x); emptied when the next minor line
 -- (5.8.0) starts (TODO.md "Neu-Markierungen").
-local NEW_TAGS = { -- the 6.1.x marks removed when 6.2.0 started (rule: marks stay one minor line)
-  infoBar = "6.2.2",
-  npcQuestTip = "6.2.2",
-  questXPTracked = "6.2.2",
-  guildMap = "6.2.2",
-  quiverAmmo = "6.2.2",
-  deValue = "6.2.6",
-  tipMouse = "6.2.7",
-  bookAlertNoFlying = "6.2.7",
-  logoSize = "6.2.11",
-  junkKey = "6.2.12",
-  guildGames = "6.2.12",
-  mapQuestNoRoutes = "6.2.12",
-  mapQuestsGrey = "6.2.12",
+local NEW_TAGS = { -- user 20.11.2026 23:02: all marks from before 6.2.13 removed, only this version's stay
+  gossipSkip = "6.2.13",
+  gvMode = "6.2.13",
+  ahScan = "6.2.13",
 }
 -- placed left of the checkbox (or of the label when there is none), user 16.10.
 local function newTag(parent, anchor, key, dx)
@@ -394,9 +384,8 @@ local function createQoLPanel(parent)
 
   ---------------------------------------------------------------------------------------------------
   -- INTERFACE (first, the tab opens here; user 22.10.)
-  local c = category("iface", N"Interface", "Interface\\Icons\\INV_Misc_Gear_01", N"Camera, bags, windows, the minimap and other helpers for the game's interface.")
+  local c = category("iface", N"Interface", "Interface\\Icons\\INV_Misc_Gear_01", N"Bags, windows, the minimap and other helpers for the game's interface.")
   local g = group(c, N"General")
-  check(g, N"Farther camera zoom", N"Lets you zoom the camera out further.", nil, "cameraZoom")
   check(g, N"Free bag slots on the backpack", N"Shows the number of free slots on your backpack.", N"Counts all normal bags (quivers, ammo and profession bags are not counted).", "bagSlots")
   check(g, N"All ammo on the quiver", N"Your quiver or ammo pouch shows all arrows / bullets in your bags.", N"Instead of only what it holds; the game shows \"*\" for more than 999. On by default for hunters.", "quiverAmmo")
   check(g, N"Info bar", N"A band at the top of the screen with the information you choose.", N"Starts empty: right-click the band to add elements (gold, bags, durability, experience, location, clock, FPS, new trainer spells, Library Books, hearthstone, class reagent, guild, friends, mail, Value spec, the tabs of the OneForAll window) or to pin it. Pinned it stays open; else it folds up to a small tab 3 seconds after the mouse left it and opens while the mouse is on it. Click an element to open what belongs to it.", "infoBar")
@@ -474,7 +463,6 @@ local function createQoLPanel(parent)
       if FLT.InfoBar and FLT.InfoBar.ResetPosition then FLT.InfoBar.ResetPosition() end
     end)
   end
-  check(g, N"Hide error messages", N"Hides the red messages in the middle of the screen.", N"Messages like \"Out of range\" or \"Not enough rage\" are no longer shown. Still shown: inventory or bags full, quest log full, not enough money, carrying too many of an item.", "hideErrors")
   g = group(c, N"Windows")
   do
     local r = check(g, N"Move Blizzard windows", N"Drag windows like the character or quest log window anywhere.", N"Drag windows such as the character, merchant or quest log window with the left mouse button. Positions are remembered.", "moveWindows")
@@ -539,30 +527,6 @@ local function createQoLPanel(parent)
   check(g, N"Square minimap", N"A square minimap with a thin black frame.", N"The round border and the compass are hidden; minimap buttons of other addons follow the square edge. Does nothing with ElvUI or when another addon already makes the minimap square.", "mmSquare")
 
   ---------------------------------------------------------------------------------------------------
-  -- CHAT (own entry in the list, user 31.10.)
-  c = category("chat", N"Chat", "Interface\\Icons\\INV_Scroll_03", N"The chat windows and the chat box.")
-  g = group(c, N"Chat windows")
-  do -- chat font size: -, value, +
-    local r = row(g, N"Chat font size", N"The same font size for every chat window.", N"Go below 10 to switch it off (then the game's own setting is kept).")
-    local function step(d)
-      local v = tonumber(Q.Get("chatFont"))
-      if not v then v = 14 else v = v + d end
-      if v < 10 then v = nil elseif v > 24 then v = 24 end
-      Q.Set("chatFont", v); r.show()
-    end
-    button(r, "+", 26, nil, function() step(1) end)
-    local val = FLT.NewFS(r, nil, "OVERLAY", "GameFontNormal"); val:SetWidth(46); val:SetJustifyH("CENTER"); val:SetHeight(20); place(r, val, 4)
-    button(r, "-", 26, nil, function() step(-1) end)
-    r.show = function() local v = tonumber(Q.Get("chatFont")); val:SetText(v and tostring(v) or L["Off"]) end
-    refreshers[#refreshers + 1] = r.show
-  end
-  check(g, N"Copy chat button", N"Adds a button to every chat window to copy its text.", N"A small button at the top right of every chat window. It opens the chat text so you can select and copy it (Ctrl+C).", "copyChat")
-  check(g, N"Hide chat button", N"A button next to the chat hides and shows it.", N"It sits above the chat menu button. Also as a key: Key Bindings > OneForAll > Hide / show chat. Pressing Enter to type brings the chat back.", "chatHide")
-  choice(g, N"Hide chat after", N"Hides the chat after that long without a new message.", N"A new message or typing shows it again. Not while the mouse is on the chat.", "chatAutoHide", Q.CHAT_HIDE_OPTIONS)
-  g = group(c, N"Typing")
-  check(g, N"Message history", N"Arrow up / down in the chat box brings back your last 5 messages.", N"Type, send, open the chat again and press arrow up: the message is there again, Enter sends it. While typing, the arrow keys no longer turn your character.", "chatHistory")
-
-  ---------------------------------------------------------------------------------------------------
   -- LOOT & VENDORS
   c = category("loot", N"Loot & Vendors", "Interface\\Icons\\INV_Misc_Bag_10", N"Looting, merchants, full bags and the loot feed.")
   g = group(c, N"Looting")
@@ -585,6 +549,8 @@ local function createQoLPanel(parent)
     refreshers[#refreshers + 1] = show
     newTag(r, r.label, "junkList")
   end
+  -- 6.2.13-beta19 (user 21.11.: on by default; off = only the button in the auction house is gone)
+  check(g, N"Cheap Upgrade Scan button", N"A button in the auction house that scans it for Armory > Cheap Upgrades.", N"Reads the whole auction house (Blizzard's full scan, once every 15 minutes) and keeps the cheapest price of every Bind on Equip piece of gear, items with a random bonus (\"of the Eagle\") each with their own price - Auctionator has only one price per item. Off: no button, nothing is read; the Cheap Upgrades then use Auctionator's prices.", "ahScan")
   g = group(c, N"Full bags")
   check(g, N"Bags full helper", N"When loot does not fit, offers to destroy the cheapest item.", N"Suggests the cheapest item in your bags (value x stack), destroys it and loots with one click. Quest items, library books, recipes, set pieces, profession tools and items without value are never suggested. Items better than grey need a second click. /ofa cheapest shows it any time.", "bagsFull")
   check(g, N"Only grey and white items", N"The helper only suggests poor and common items.", nil, "bagsLowOnly", 24)
@@ -704,6 +670,7 @@ local function createQoLPanel(parent)
   g = group(c, N"Items")
   check(g, N"Boss drops", N"Shows which dungeon boss drops an item.", nil, "bossDrops")
   check(g, N"Gear Value", N"Upgrade or downgrade in % against what you wear.", N"On gear you can use: how much better (green) or worse (red) it is than what you wear, weighted for your talent spec like Armory > Gear Planner. Also a green arrow on upgrades in your bags, the loot roll window and quest rewards, and a gold star for wishlist items (/ofa rolltest shows an example).", "gearValue")
+  choice(g, N"Gear Value shows", N"Which change in % the tooltip line shows.", N"Whole gear: how much the item changes all the gear you wear. Item against item: against the item it replaces (bigger numbers). Both: \"65% (overall 6%)\". The arrows stay the same.", "gvMode", Q.GV_MODE_OPTIONS, nil, 24)
   check(g, N"Arrow color by armor type", N"Yellow arrow for upgrades in a lighter armor type.", N"The green arrow stays for upgrades in the best armor type of your class. Upgrades in a lighter type get a yellow arrow: warriors and paladins wear plate from level 40 (mail before), hunters and shamans mail from 40 (leather before), rogues and druids leather. Cloaks, jewelry, shields and weapons are not affected. Needs \"Gear Value\".", "arrowTiers", 24)
   check(g, N"Short green stats", N"Long \"Equip:\" lines as short stats, e.g. \"+1% Hit\".", N"\"Equip: Improves your chance to hit by 1%.\" becomes \"+1% Hit\", spell damage and healing get a line each, and \"Enchanted:\" lines put the number first. Lines it does not know stay as they are. Hover the item again after switching.", "shortStats")
   check(g, N"Hide \"appearance not collected\"", N"No more blue \"You haven't collected this appearance\" line on items.", N"Also hides \"You've collected this appearance, but not from this item\". Hover the item again after switching.", "hideAppearance")
@@ -722,7 +689,7 @@ local function createQoLPanel(parent)
   check(g, N"Quests on NPCs", N"Quests you can take (!) or turn in (?) at the NPC under your mouse.", N"The same quests as the quest icons on the world map: for your level, side, race and class, pre-quests done. Off while Questie is loaded (it shows its own).", "npcQuestTip")
 
   -- SOCIAL
-  c = category("social", N"Social", "Interface\\Icons\\INV_Letter_15", N"Group invites, duels, recipe sharing and thanks.")
+  c = category("social", N"Social", "Interface\\Icons\\INV_Letter_15", N"Group invites, duels and recipe sharing.")
   g = group(c, N"Groups")
   choice(g, N"Group invites from", N"Accepts group invites from the players you choose.", N"Off: OneForAll does nothing with invites.", "inviteMode", Q.WHO_OPTIONS, "inviteOn")
   choice(g, N"Keyword invites from", N"Invites players who whisper you the keyword.", N"Off: OneForAll does nothing with whispers.", "keywordMode", Q.WHO_OPTIONS, "keywordOn")
@@ -745,8 +712,6 @@ local function createQoLPanel(parent)
     nil, nil, function() return FLT.IsRecipeShareEnabled and FLT.IsRecipeShareEnabled() end,
     function(v) if FLT.SetRecipeShareEnabled then FLT.SetRecipeShareEnabled(v) end end)
   end
-  g = group(c, N"Buffs")
-  check(g, N"Thank players who buff you", N"Sends a /thank to players outside your group who buff you.", N"For buffs that last longer than 2 minutes. It comes 1 second later, not in combat, at most once every 5 minutes per player. Your target is not changed. /ofa thanks shows the last buffs.", "thanksBuff")
 
   -- GUILD (own category, user 09.11.: "eventuell kommt ja noch mehr dazu")
   c = category("guild", N"Guild", "Interface\\Icons\\INV_Shirt_GuildTabard_01", N"What you share with your guild members who also use OneForAll.")
@@ -803,9 +768,6 @@ local function createQoLPanel(parent)
     r.cb:HookScript("OnClick", show) -- greyed out while Remove Fog is off
   end
   check(g, N"Zone level range", N"The zone's level range at the top right of the world map and when you hover a zone.", N"At the top right of a zone map, and behind the zone name when you hover a zone on the continent map. Gold: your level, red: still too low, grey: you are above it.", "mapZoneLevel")
-  g = group(c, N"Flights")
-  check2(g, { N"Open flight map at once", N"At a flight master, straight to the flight map.", N"Not when the flight master also has quests for you. Hold Shift to talk normally.", "flightMapNow" },
-    { N"Flight times", N"A bar with the time left while you fly.", N"The time also shows in the tooltip of the destinations on the flight map. OneForAll measures your flights; routes you never flew are estimated (\"about\").", "flightTimes" })
   g = group(c, N"Dungeons")
   -- moved from Settings (5.6.8, user 22.10.); on by default: only an explicit "off" turns it off
   check(g, N"Dungeon map on M", N"Inside a dungeon, M opens OneForAll's dungeon map.", N"Inside a dungeon that has a map, the world map key (M) opens OneForAll's dungeon map instead of the world map. Press it again to close. Takes effect outside combat.", nil, nil,
@@ -955,6 +917,71 @@ local function createQoLPanel(parent)
     function() return not (type(OneForAllDB) == "table" and type(OneForAllDB.questShare) == "table" and OneForAllDB.questShare.popup == false) end,
     function(v) if type(OneForAllDB) == "table" then OneForAllDB.questShare = OneForAllDB.questShare or {}; OneForAllDB.questShare.popup = v and true or false end end)
   ---------------------------------------------------------------------------------------------------
+  -- MISCELLANEOUS (6.2.13-beta11, user 20.11.: the NPC shortcuts, the chat options (the Chat entry is gone), camera zoom,
+  -- error messages, flight times and thanking for buffs in one place)
+  c = category("misc", N"Miscellaneous", "Interface\\Icons\\INV_Misc_Rune_01", N"NPC shortcuts, the chat and other small helpers.")
+  g = group(c, N"NPCs")
+  do -- skip the talk at service NPCs (6.2.13, user 20.11.: a drop-down with each service, all off at first start)
+    local r = row(g, N"Skip the talk at service NPCs", N"Opens the vendor, bank, trainer ... window at once.",
+      N"Only when the NPC has no quests for you and offers just this one service. Hold Shift to talk normally. Tick the services in the list.")
+    r.find = r.find .. " gossip" -- found by "gossip" too (6.2.13-beta13, user 20.11.)
+    local b, arrow = dropButton(r, 150)
+    local NAMES = { gossipVendor = N"Vendors", gossipBank = N"Bank", gossipTrainer = N"Trainers",
+      gossipAuction = N"Auction House", gossipStable = N"Stable Master", gossipGuildBank = N"Guild Bank", gossipTabard = N"Guild Tabard",
+      gossipBattle = N"Battlemaster" }
+    -- the flight master ("Open flight map at once", flightMapNow - its own key, QoL.lua taxiOption) first in the list
+    -- (6.2.13-beta11, user 20.11.: "den flightmaster sollte man eigentlich in dieses drop down menue packen")
+    NAMES.flightMapNow = N"Flight master"
+    local KEYS = { "flightMapNow" }
+    for _, sv in ipairs(Q.GOSSIP_SERVICES) do KEYS[#KEYS + 1] = sv[1] end
+    local function show()
+      local on, last, n = 0, nil, #KEYS
+      for _, k in ipairs(KEYS) do if Q.Get(k) then on = on + 1; last = k end end
+      b:SetLabel(on == 0 and L["None"] or on == 1 and L[NAMES[last]] or string.format(L["%d of %d"], on, n))
+    end
+    local function open(self)
+      -- "All" on top (6.2.13-beta10, user 20.11.): ticks every service at once; when all are ticked it clears them
+      local all = true
+      for _, k in ipairs(KEYS) do if not Q.Get(k) then all = false end end
+      local opts = { { key = "*", label = L["All"], checked = all } }
+      for _, k in ipairs(KEYS) do opts[#opts + 1] = { key = k, label = L[NAMES[k]], checked = Q.Get(k) and true or false } end
+      openDropDown(self, opts, nil, function(k)
+        if k == "*" then for _, key in ipairs(KEYS) do Q.Set(key, not all) end else Q.Set(k, not Q.Get(k)) end
+        show(); open(self)
+      end, 190) -- stays open for the next tick
+    end
+    b:SetScript("OnClick", open)
+    hint(b, N"Skip the talk at service NPCs", N"Tick the services in the list.")
+    newTag(r, r.label, "gossipSkip")
+    refreshers[#refreshers + 1] = show
+  end
+  g = group(c, N"General")
+  check(g, N"Farther camera zoom", N"Lets you zoom the camera out further.", nil, "cameraZoom")
+  check(g, N"Hide error messages", N"Hides the red messages in the middle of the screen.", N"Messages like \"Out of range\" or \"Not enough rage\" are no longer shown. Still shown: inventory or bags full, quest log full, not enough money, carrying too many of an item.", "hideErrors")
+  check(g, N"Flight times", N"A bar with the time left while you fly.", N"The time also shows in the tooltip of the destinations on the flight map. OneForAll measures your flights; routes you never flew are estimated (\"about\").", "flightTimes")
+  check(g, N"Thank players who buff you", N"Sends a /thank to players outside your group who buff you.", N"For buffs that last longer than 2 minutes. It comes 1 second later, not in combat, at most once every 5 minutes per player. Your target is not changed. /ofa thanks shows the last buffs.", "thanksBuff")
+  g = group(c, N"Chat windows")
+  do -- chat font size: -, value, +
+    local r = row(g, N"Chat font size", N"The same font size for every chat window.", N"Go below 10 to switch it off (then the game's own setting is kept).")
+    local function step(d)
+      local v = tonumber(Q.Get("chatFont"))
+      if not v then v = 14 else v = v + d end
+      if v < 10 then v = nil elseif v > 24 then v = 24 end
+      Q.Set("chatFont", v); r.show()
+    end
+    button(r, "+", 26, nil, function() step(1) end)
+    local val = FLT.NewFS(r, nil, "OVERLAY", "GameFontNormal"); val:SetWidth(46); val:SetJustifyH("CENTER"); val:SetHeight(20); place(r, val, 4)
+    button(r, "-", 26, nil, function() step(-1) end)
+    r.show = function() local v = tonumber(Q.Get("chatFont")); val:SetText(v and tostring(v) or L["Off"]) end
+    refreshers[#refreshers + 1] = r.show
+  end
+  check(g, N"Copy chat button", N"Adds a button to every chat window to copy its text.", N"A small button at the top right of every chat window. It opens the chat text so you can select and copy it (Ctrl+C).", "copyChat")
+  check(g, N"Hide chat button", N"A button next to the chat hides and shows it.", N"It sits above the chat menu button. Also as a key: Key Bindings > OneForAll > Hide / show chat. Pressing Enter to type brings the chat back.", "chatHide")
+  choice(g, N"Hide chat after", N"Hides the chat after that long without a new message.", N"A new message or typing shows it again. Not while the mouse is on the chat.", "chatAutoHide", Q.CHAT_HIDE_OPTIONS)
+  g = group(c, N"Typing")
+  check(g, N"Message history", N"Arrow up / down in the chat box brings back your last 5 messages.", N"Type, send, open the chat again and press arrow up: the message is there again, Enter sends it. While typing, the arrow keys no longer turn your character.", "chatHistory")
+
+  ---------------------------------------------------------------------------------------------------
 
   -- left: one button per group with "on / switches"
   local navButtons = {}
@@ -970,7 +997,8 @@ local function createQoLPanel(parent)
     b.count = FLT.NewFS(b, nil, "OVERLAY", "GameFontDisableSmall"); b.count:SetPoint("RIGHT", -5, 0)
     do local font, _, flags = b.count:GetFont(); if font then b.count:SetFont(font, 10, flags) end end
 
-    if cat.new then local m = UI.NewMark(b, L["New options in this group."]); m:SetPoint("RIGHT", b.count, "LEFT", -2, 0) end
+    -- left of the button, outside its gold bar (6.2.13-beta23, user 21.11.: "links vor das icon ... schaut dann besser aus")
+    if cat.new then local m = UI.NewMark(b, L["New options in this group."]); m:SetPoint("RIGHT", b, "LEFT", -1, 0) end
     b:SetScript("OnClick", function() if search ~= "" then searchBox:SetText("") end; selectCat(cat.key) end)
     cat.nav = b
     navButtons[i] = b

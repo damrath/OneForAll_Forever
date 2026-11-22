@@ -241,12 +241,15 @@ FLT.QUEST_PREREQ_CHAINS = {
     { id = 1452, name = "Rhapsody's Kalimdor Kocktail" },
     { id = 1469, name = "Rhapsody's Tale" },
   },
+  -- 6.2.13-beta1 (Discord deaders 19.11.: "Alliance ST quest: Into the depths has the horde chain"): The Stone Circle needs
+  -- either The Sunken Temple of the Horde (3380, Witch Doctor Uzer'i) or of the Alliance (3445, Angelas Moonbreeze, Feathermoon
+  -- Stronghold) - QuestieDB preQuestSingle {3380, 3445}; "alliance = " is the Alliance step, swapped in at login (GearPlanner.lua)
   [3446] = {
-    { id = 3380, name = "The Sunken Temple" },
+    { id = 3380, name = "The Sunken Temple", alliance = 3445 },
     { id = 3444, name = "The Stone Circle" },
   },
   [3447] = {
-    { id = 3380, name = "The Sunken Temple" },
+    { id = 3380, name = "The Sunken Temple", alliance = 3445 },
     { id = 3444, name = "The Stone Circle" },
   },
   [3528] = {
@@ -1084,6 +1087,7 @@ FLT.QUEST_PREREQ_DETAILS = {
   [1452] = { level = 43, requires = 38, objective = "Rhapsody Shindigger in The Hinterlands wants you to bring him 3 Roc Gizzards, 3 Groddoc Livers and 3 Ironfur Livers.", pickup = "Rhapsody Shindigger, The Hinterlands (26.9, 48.6)", turnin = "Rhapsody Shindigger, The Hinterlands" },
   [1469] = { level = 43, requires = 38, objective = "Bring the Atal'ai Tablet Fragment to Brohann Caskbelly in Stormwind.", pickup = "Rhapsody Shindigger, The Hinterlands (26.9, 48.6)", turnin = "Brohann Caskbelly, Stormwind City (69.5, 40.4)" },
   [3380] = { level = 51, requires = 46, objective = "Find Marvon Rivetseeker in Tanaris.", pickup = "Witch Doctor Uzer'i, Feralas (74.4, 43.4)", turnin = "Marvon Rivetseeker, Tanaris (52.7, 45.9)" },
+  [3445] = { level = 51, requires = 46, objective = "Find Marvon Rivetseeker in Tanaris.", pickup = "Angelas Moonbreeze, Feralas (31.8, 45.6)", turnin = "Marvon Rivetseeker, Tanaris (52.7, 45.9)" },
   [3444] = { level = 51, requires = 46, objective = "Retrieve the Stone Circle from Marvon Rivetseeker's workshop in Ratchet.", pickup = "Marvon Rivetseeker, Tanaris (52.7, 45.9)", turnin = "Marvon Rivetseeker, Tanaris" },
   [4787] = { level = 50, requires = 40, objective = "Bring the Ancient Egg to Yeh'kinya in Tanaris.", pickup = "Yeh'kinya, Tanaris (67.0, 22.4)", turnin = "Yeh'kinya, Tanaris" },
   [9063] = { level = 52, requires = 50, objective = "Speak with Torwa Pathfinder in Un'Goro Crater.", pickup = "Turak Runetotem, Thunder Bluff (76.5, 27.2)", turnin = "Torwa Pathfinder, Un'Goro Crater (71.6, 76.0)" },

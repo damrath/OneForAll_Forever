@@ -27,13 +27,14 @@ local META = {
   ["Scarlet Monastery: Armory"] = {key="smarm", instanceID=189, short="SM: Armory", uiMaps={304}, territory="Horde", mapZone="Tirisfal Glades", mapX=82.6, mapY=33.8, minLevel=36, coordsUnverified=true},
   ["Razorfen Downs"] = {key="rfd", instanceID=129, territory="Horde", mapZone="The Barrens", mapX=49.0, mapY=93.9, minLevel=37, coordsUnverified=true},
   ["Scarlet Monastery: Cathedral"] = {key="smcath", instanceID=189, short="SM: Cathedral", uiMaps={305}, territory="Horde", mapZone="Tirisfal Glades", mapX=82.6, mapY=33.8, minLevel=38, coordsUnverified=true},
-  -- entrances (all unverified in game): Krol'dok foreverchanges.pro ("a fortress on a hill at about 48.6, 26.3"); 6.2.7-beta16
+  -- entrances (all unverified in game): Krol'dok 37.5, 39.0 (6.2.13, Discord tovox 20.11. with a screenshot at the real entrance;
+  -- before foreverchanges.pro "a fortress on a hill at about 48.6, 26.3"); 6.2.7-beta16
   -- (user's list 13.11., checked against warcrafttavern.com): Alcaz the portal in the basement of the northern prison building
   -- (mmonster 75.5, 13.7; Warcraft Tavern "around 75, 15"), Drowned City underwater off Stranglethorn past the Vile Reef
   -- (Sunken Hollow, about 21.4, 27.9), Blackmaw Hold the furbolg tunnel with the meeting stone in Azshara (38.4, 32.6; Warcraft
   -- Tavern 38.7, 33.4 - the portal itself is deep inside, Winterspring 66.6, 84.4), Shaper's Terrace the titan gate on the
   -- hill above Marshal's Refuge (48.1, 6.1)
-  ["Krol'dok Stronghold"] = {key="kroldok", territory="Contested", mapZone="Riverglades", mapX=48.6, mapY=26.3, coordsUnverified=true, betaNew=true, minLevel=40},
+  ["Krol'dok Stronghold"] = {key="kroldok", territory="Contested", mapZone="Riverglades", mapX=37.5, mapY=39.0, betaNew=true, minLevel=40},
   ["Uldaman"] = {key="uldaman", instanceID=70, territory="Contested", mapZone="Badlands", mapX=44.6, mapY=12.1, minLevel=41, coordsUnverified=true},
   ["Zul'Farrak"] = {key="zf", instanceID=209, territory="Contested", mapZone="Tanaris", mapX=38.7, mapY=20.1, minLevel=44, coordsUnverified=true},
   ["Maraudon"] = {key="maraudon", instanceID=349, territory="Contested", mapZone="Desolace", mapX=29.1, mapY=62.5, minLevel=46, coordsUnverified=true},

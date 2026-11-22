@@ -387,8 +387,6 @@ local function createFrame()
     local hl = b:CreateTexture(nil, "HIGHLIGHT"); FLT.SetTex(hl, UI.ASSET_ROOT .. "talent_frame"); hl:SetAllPoints(); hl:SetBlendMode("ADD")
     hl:SetVertexColor(FLT.SkinC(1, 0.86, 0.40, 0.85)); b:SetHighlightTexture(hl)
     b.icon, b.ring = ic, ring
-    -- 6.2.x "New" mark (TODO.md "Neu-Markierungen")
-    if m[1] == "pet" and UI.NewMark then local nm = UI.NewMark(b, L["New in this version."]); nm:SetPoint("CENTER", b, "TOPRIGHT", -2, -2) end
     b:SetScript("OnClick", function() viewMode = m[1]; if f.sf then f.sf:SetVerticalScroll(0) end; FLT.RefreshTrainerSpells() end)
     b:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L[m[3]], 1, 0.82, 0); GameTooltip:AddLine(L[m[4]], 1, 1, 1, true); GameTooltip:Show()

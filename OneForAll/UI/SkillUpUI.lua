@@ -190,7 +190,6 @@ local function newRow()
   end)
   b.buy:SetScript("OnLeave", function() GameTooltip:Hide() end)
   b.map:SetScript("OnClick", function(self) if self.loc and FLT.ShowOnMap then FLT:ShowOnMap(self.loc) end end)
-  b.newm = UI.NewMark(b, string.format(L["New in OneForAll %s."], "6.2.12")); b.newm:Hide() -- buy or craft (beta18)
   b:SetScript("OnEnter", function(self)
     if not (self.item or self.key) then return end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -230,7 +229,7 @@ local function line(y, o)
   local b = rows[used]; if not b then b = newRow(); rows[used] = b end
   b:ClearAllPoints(); b:SetPoint("TOPLEFT", 4, y); b:SetPoint("RIGHT", gchild, "RIGHT", -4, 0); b:Show()
   b.item, b.key, b.isDone, b.toggle, b.tip = o.item, o.key, o.done, o.toggle, o.tip
-  b.c1:Hide(); b.call:Hide(); b.pbar:Hide(); b.chance:Hide(); b.buy:Hide(); b.newm:Hide()
+  b.c1:Hide(); b.call:Hide(); b.pbar:Hide(); b.chance:Hide(); b.buy:Hide()
   local x = 4 + (o.indent or 0) * 14
   b.cur:SetShown(o.current and true or false)
   if o.head then
@@ -240,7 +239,6 @@ local function line(y, o)
     if o.done then b.mark:SetKind("check"); b.mark:SetColor(0.35, 0.85, 0.40) end
     b.text:ClearAllPoints(); b.text:SetPoint("LEFT", x + (o.done and 18 or 0), 0); b.text:SetPoint("RIGHT", -4, 0)
     b.text:SetFontObject("GameFontNormal"); b.text:SetText(o.head); b.text:SetTextColor(FLT.SkinC(unpack(GOLD)))
-    if o.new then b.newm:ClearAllPoints(); b.newm:SetPoint("LEFT", b.text, "LEFT", (b.text:GetStringWidth() or 0) + 4, 0); b.newm:Show() end
     b:SetHeight(24)
     return y - 26
   end
@@ -617,7 +615,6 @@ function UI.NoOwnSwitch(f, onChange)
     GameTooltip:Show()
   end)
   cb:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  local m = UI.NewMark(f, string.format(L["New in OneForAll %s."], "6.2.12")); m:SetPoint("LEFT", fs, "RIGHT", 2, 0)
   return cb, fs
 end
 
@@ -770,7 +767,7 @@ function UI.CreateSkillUpPage(parent)
   recalc:SetScript("OnLeave", function() GameTooltip:Hide() end)
   local cols = { { x = 0, w = 80, text = L["Skill"] }, { x = 80, w = 360, text = L["Recipe"] }, { x = 440, w = 90, text = L["Crafts"] },
     { x = 530, w = 130, text = L["Cost"] }, { x = 660, w = 160, text = L["Learn"] } }
-  UI.ColumnHeader(f, cols, 820, -226)
+  UI.ColumnHeader(f, cols, 820, -250) -- 6.2.13 (Discord archdruidbris): under the price note at -234, not over it
   local sf = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate"))
   sf:SetPoint("TOPLEFT", 4, -278); sf:SetPoint("BOTTOMRIGHT", -26, 4)
   local child = CreateFrame("Frame", nil, sf); child:SetSize(800, 10); sf:SetScrollChild(child)

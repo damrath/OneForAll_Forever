@@ -1133,10 +1133,7 @@ local function createArmoryPanel(parent)
   for _, g in ipairs(GROUPS) do navButton(g.key, L[g.label], g.icon) end
   divider()
   navButton("rep", L["Reputation"], "Interface\\Icons\\INV_Misc_Note_02")
-  do -- 6.2.x (TODO.md "Neu-Markierungen")
-    local b = navButton("quests", L["Special Quests"], "Interface\\Icons\\INV_Scroll_03")
-    local m = UI.NewMark(b, L["New in this version."]); m:SetPoint("RIGHT", b, "RIGHT", -6, 0)
-  end
+  navButton("quests", L["Special Quests"], "Interface\\Icons\\INV_Scroll_03")
   divider()
   for _, l in ipairs({ { N"Mounts", "Interface\\Icons\\Ability_Mount_RidingHorse" }, { N"Legendaries", "Interface\\Icons\\INV_Staff_Medivh" } }) do
     local b; b, navY = UI.NavEntry(nav, navY, L[l[1]], l[2])

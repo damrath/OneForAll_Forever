@@ -787,10 +787,8 @@ local function createProfessionPanel(parent)
     subButtons[spec[1]]=b
   end
   -- 6.2.6: the Skill-Up Helper (UI/SkillUpUI.lua, logic SkillUp.lua) - new in this version (TODO.md "Neu-Markierungen")
-  do local m=UI.NewMark(subButtons.skillup, L["New in this version."]); m:SetPoint("TOPRIGHT",4,4) end
   -- 6.2.6-beta28: the Profit page (UI/ProfitUI.lua) - new in this version; the Crafting List button moved into
   -- All recipes / Favorites (UI/ProfessionRecipes.lua, user 12.11.: "dort besser aufgehoben")
-  do local m=UI.NewMark(subButtons.profit, L["New in this version."]); m:SetPoint("TOPRIGHT",4,4) end
   local profitView -- made on first use
 
   -- Merchant's Favor page (own entry in the left menu) -----------------------

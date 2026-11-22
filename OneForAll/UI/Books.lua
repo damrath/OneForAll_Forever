@@ -362,7 +362,7 @@ local function createBooksPanel(frame)
       local tc = CREST_TC[territory] or CREST_TC.Contested
       row.crest:SetTexCoord(tc[1], tc[2], 0, 1)
       local c = perSet[row.book.set] or { done = 0, n = 0 }; perSet[row.book.set] = c
-      c.n = c.n + 1; if st == "done" then c.done = c.done + 1 end
+      c.n = c.n + 1; if st == "done" or st == "manual" then c.done = c.done + 1 end -- 6.2.13: like GetCounts (Discord)
     end
     for _, section in ipairs(sections) do
       local c = perSet[section.id] or { done = 0, n = #section.rows }

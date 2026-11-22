@@ -117,15 +117,19 @@ local function eachOwnProfession(fn)
   -- Modern profession API (profession book)
   if GetProfessions and GetProfessionInfo then
     any = true
-    local list = {GetProfessions()}
+    local list, found = {GetProfessions()}, false
     for k = 1, 6 do
       local idx = list[k]
       if idx then
         local ok, name, _, rank, maxRank, _, _, skillLine = pcall(GetProfessionInfo, idx)
         local prof = ok and profFromName(name, skillLine)
-        if prof and rank then fn(prof, rank, maxRank) end
+        if prof and rank then fn(prof, rank, maxRank); found = true end
       end
     end
+    -- the profession book lists all of them at once (6.2.13-beta15, Discord gullols 21.11.: a changed profession stayed - the
+    -- old skill list alone was never "complete" on the Forever client); only with at least one profession found (early
+    -- after login the list can be empty) and the names known
+    if found and (not FLT.ProfKeyReady or FLT.ProfKeyReady()) then full = true end
   end
   return any, full
 end
@@ -716,7 +720,6 @@ function UI.CreateRecipeBrowser(parent)
     end, 180)
   end)
   paintFunnel()
-  do local m = UI.NewMark(f, L["New in this version."]); m:SetPoint("LEFT", funnel, "RIGHT", 2, 0) end -- 6.2.x (TODO.md "Neu-Markierungen")
   box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
   box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
 

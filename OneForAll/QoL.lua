@@ -22,6 +22,8 @@ local DEFAULTS = {
   tipMousePos = "BOTTOMRIGHT", -- Tooltip at the mouse: off, bottom right preselected (user 13.11.; the list showed "Top left" before)
   mapLandmarks = true, lmDungeons = true, lmFlight = true, lmTransport = true, lmTransitions = true, -- transitions: on like all landmarks (user 01.11.) -- Map Landmarks: on with all parts (user 16.10.)
   gearValue = true, -- Gear Planner Value in item tooltips: on (user 16.10.)
+  ahScan = true, -- "Cheap Upgrade Scan" button in the auction house (6.2.13-beta19): on (user 21.11.)
+  gvMode = "overall", -- which % the Gear Value line shows (6.2.13): the whole gear's, as before (user 20.11.)
   spellbookTrainer = true, -- trainer button in the spellbook: on (user 22.10.)
   classBright = true, -- brighter class colors: on (user 22.10.)
   mapFog = true, -- Remove Fog: on (user 22.10.)
@@ -32,6 +34,9 @@ local DEFAULTS = {
   infoBarDelay = 3, -- seconds the info bar stays open after the mouse left it, when not pinned (user 09.11.: default 3)
   buffScale = 100, buffIconOnly = false, -- buff reminder size in % and icon only (6.0.3, user 01.11.)
   flightMapNow = true, -- open the flight map at once at a flight master (6.1.5): on (user 05.11.)
+  -- skip the talk at service NPCs (6.2.13): every service off at first start (user 20.11.)
+  gossipVendor = false, gossipBank = false, gossipTrainer = false, gossipAuction = false,
+  gossipStable = false, gossipGuildBank = false, gossipTabard = false, gossipBattle = false,
   flightTimes = true, -- flight times: bar while flying, times on the flight map (6.1.5): on (user 05.11.)
   buffFlash = true, -- buff reminder cards glow (6.1.4, Discord 05.11.): on (user 05.11.)
   buffSnoozeBtn = false, -- "Zz" snooze button on the cards (6.1.4): off (user 05.11.)
@@ -112,6 +117,10 @@ QoL.MM_DIR_OPTIONS = { { key = "auto", label = N"Automatic" }, { key = "top", la
 QoL.JUNK_KEY_OPTIONS = { { key = "alt-right", label = N"Alt + right-click" }, { key = "ctrl-right", label = N"Ctrl + right-click" },
   { key = "alt-left", label = N"Alt + left-click" }, { key = "ctrl-alt-right", label = N"Ctrl + Alt + right-click" },
   { key = "shift-alt-right", label = N"Shift + Alt + right-click" } }
+-- Gear Value in tooltips: which % it shows (6.2.13, user 20.11.: drop-down "item<>item, overall, both"; default "Overall" =
+-- as players had it): % of the replaced item, % of the whole gear, or both ("65% (overall 6%)")
+QoL.GV_MODE_OPTIONS = { { key = "overall", label = N"Whole gear" }, { key = "item", label = N"Item against item" },
+  { key = "both", label = N"Both" } }
 QoL.JUNK_KEYS = { ["alt-right"] = { alt = true, b = "RightButton" }, ["ctrl-right"] = { ctrl = true, b = "RightButton" },
   ["alt-left"] = { alt = true, b = "LeftButton" }, ["ctrl-alt-right"] = { ctrl = true, alt = true, b = "RightButton" },
   ["shift-alt-right"] = { shift = true, alt = true, b = "RightButton" } }
@@ -235,9 +244,21 @@ end
 local function quickLoot()
   if not QoL.Get("quickLoot") or not GetNumLootItems or not LootSlot then return end
   local auto = GetCVarBool and GetCVarBool("autoLootDefault") and true or false
-  local key = IsModifiedClick and IsModifiedClick("AUTOLOOTTOGGLE") and true or false
+  -- 6.2.13-beta2 (Discord slips9497 20.11.: "quick loot stopped working ... basically its using the old auto loot"): with the
+  -- Auto Loot key set to "None" the game answers IsModifiedClick("AUTOLOOTTOGGLE") with true all the time - then no key
+  -- counts as held (guessed cause)
+  local mod = GetModifiedClick and GetModifiedClick("AUTOLOOTTOGGLE")
+  local key = mod ~= "NONE" and IsModifiedClick and IsModifiedClick("AUTOLOOTTOGGLE") and true or false
   if auto == key then return end
-  for i = GetNumLootItems(), 1, -1 do pcall(LootSlot, i) end
+  -- once per loot window (6.2.13-beta23, Discord emzime 21.11. with log and patch): with full bags every LootSlot fails
+  -- ("Inventory is full") and the server sends the loot again (LOOT_OPENED without LOOT_CLOSED) - asking for every slot again
+  -- made a loop at network speed (game frozen, disconnect). QoL._quickLootAt: cleared on LOOT_CLOSED; after 10 s it may try
+  -- once more (in case a LOOT_CLOSED was missed). A field, not a local: this file is at Lua's limit of 200 locals.
+  if QoL._quickLootAt and GetTime() - QoL._quickLootAt < 10 then return end
+  local n = GetNumLootItems() or 0
+  if n == 0 then return end -- not known yet (LOOT_READY): LOOT_OPENED does it
+  QoL._quickLootAt = GetTime()
+  for i = n, 1, -1 do pcall(LootSlot, i) end
 end
 
 local function autoRepair()
@@ -331,7 +352,8 @@ local function sellJunk()
   if not QoL.Get("sellJunk") or paused() then return end
   if sellTicker then sellTicker:Cancel(); sellTicker = nil end
   local list, total = {}, 0
-  for bag = 0, NUM_BAGS do
+  -- 6.2.13 (Discord seekay1): the reagent bag too (bag 5 = NUM_TOTAL_EQUIPPED_BAG_SLOTS; the other bag loops stay 0-4)
+  for bag = 0, math.max(NUM_BAGS, tonumber(NUM_TOTAL_EQUIPPED_BAG_SLOTS) or 0) do
     for slot = 1, numSlots(bag) do
       local link, count, quality, noValue, locked = itemInfo(bag, slot)
       local id = link and tonumber(link:match("item:(%d+)"))
@@ -459,10 +481,41 @@ local function taxiOption()
     if o.type == "taxi" or icon == 132057 or (type(icon) == "string" and icon:lower():find("taxi")) then return o end
   end
 end
+-- skip the talk at service NPCs (6.2.13, user 20.11.: "gossip ueberspringen wie Dialoge, Bank, etc"; a drop-down with each
+-- service on its own, all off at first start): only when the NPC has no quests for you and exactly ONE option, and that
+-- one is the service; Shift talks normally. The client's gossip icons (Interface\GossipFrame\*GossipIcon, Mainline file
+-- IDs) - auctioneer / stable master / guild bank by the icon path where the client gives one (im Spiel pruefen)
+QoL.GOSSIP_SERVICES = {
+  { "gossipVendor", { [132060] = true }, "vendor" },
+  { "gossipBank", { [132050] = true }, "banker" },
+  { "gossipTrainer", { [132058] = true }, "trainer" },
+  { "gossipAuction", {}, "auction" },
+  { "gossipStable", {}, "stable" },
+  { "gossipGuildBank", {}, "guildbank" },
+  { "gossipTabard", { [132056] = true }, "tabard" },
+  { "gossipBattle", { [132051] = true }, "battlemaster" },
+}
+function QoL.ServiceOption() -- (a field, not a local: this file is at the 200 locals limit)
+  if not (C_GossipInfo and C_GossipInfo.GetOptions) then return nil end
+  if #(C_GossipInfo.GetAvailableQuests and C_GossipInfo.GetAvailableQuests() or {}) > 0 then return nil end
+  if #(C_GossipInfo.GetActiveQuests and C_GossipInfo.GetActiveQuests() or {}) > 0 then return nil end
+  local opts = C_GossipInfo.GetOptions() or {}
+  if #opts ~= 1 then return nil end
+  local o = opts[1]
+  local icon = o.icon
+  local path = type(icon) == "string" and icon:lower() or nil
+  for _, sv in ipairs(QoL.GOSSIP_SERVICES) do
+    if QoL.Get(sv[1]) and (sv[2][icon] or (path and path:find(sv[3], 1, true)) or o.type == sv[3]) then return o end
+  end
+end
 local function gossipShow()
   if paused() or not C_GossipInfo then return end
   if QoL.Get("flightMapNow") then
     local o = taxiOption()
+    if o and o.gossipOptionID and C_GossipInfo.SelectOption then C_GossipInfo.SelectOption(o.gossipOptionID); return end
+  end
+  do
+    local o = QoL.ServiceOption()
     if o and o.gossipOptionID and C_GossipInfo.SelectOption then C_GossipInfo.SelectOption(o.gossipOptionID); return end
   end
   if QoL.Get("autoTurnIn") and C_GossipInfo.GetActiveQuests then
@@ -644,23 +697,33 @@ QoL._thanks = { consider = considerAura, fire = fireThanks, settle = thanksSettl
 -- left - or ran out after it was up - a small popup says so; a click on its icon casts the buff again. It goes away by
 -- itself once the buff is back. The popup can be dragged, its place is remembered (qol.buffPopupPos).
 -- Checks: UNIT_AURA (player, short debounce) plus ONE timer to the next moment a buff reaches its time; the 1 s
--- countdown only runs while the popup is shown. The list lives in qol.buffReminders = { [spell name] = seconds }.
+-- countdown only runs while the popup is shown. The list lives in OneForAllCharDB.buffReminders = { [spell name] = seconds }
+-- (per character since 6.2.13; before: qol.buffReminders for the whole account, copied to each character once).
 -- ---------------------------------------------------------------------------
 local checkBuffs, buffAura, syncBuffButton, inCapital, layoutCard, noteRanks -- set in the block below (keeps the file under 200 locals)
 do
-  local function buffList()
-    local d = db(); if not d then return {} end
-    d.buffReminders = d.buffReminders or {}
-    return d.buffReminders
+  -- per character since 6.2.13 (user 20.11.: "den buff-reminder characterbezogen machen"): OneForAllCharDB.buffReminders /
+  -- .buffIDs; a character without its own list starts with a copy of the old account-wide one (qol.buffReminders), so
+  -- nobody loses entries - then each character keeps its own. Without the character table (very early): the account one.
+  local function charList(field)
+    local c = OneForAllCharDB
+    if type(c) ~= "table" then
+      local d = db(); if not d then return {} end
+      d[field] = d[field] or {}
+      return d[field]
+    end
+    if type(c[field]) ~= "table" then
+      local d, copy = db(), {}
+      for k, v in pairs(d and d[field] or {}) do copy[k] = v end
+      c[field] = copy
+    end
+    return c[field]
   end
+  local function buffList() return charList("buffReminders") end
   -- the spell / item ID of each watched buff (6.2.0, user 07.11.: after switching the client from English to German the
   -- saved English names matched nothing): qol.buffIDs[key] = spell ID or "i<item ID>". The list keys stay names in the
   -- client's language (the cast buttons need them); migrateBuffs() renames them when the client language changed.
-  local function buffIDs()
-    local d = db(); if not d then return {} end
-    d.buffIDs = d.buffIDs or {}
-    return d.buffIDs
-  end
+  local function buffIDs() return charList("buffIDs") end
   -- weapon enchants (6.0.3, user 01.11.: oils, sharpening stones, poisons): key "<item name>@mh" / "@oh"
   local SLOTS = { mh = 16, oh = 17 }
   local SLOT_LABEL = { mh = N"main hand", oh = N"off hand" } -- shown with L[...]
@@ -1207,7 +1270,7 @@ do
     return name
   end
   function QoL.RemoveBuffReminder(name) buffList()[name] = nil; buffIDs()[name] = nil; buffSeen[name] = nil; checkBuffs() end
-  function QoL.ClearBuffReminders() local d = db(); if d then d.buffReminders = {}; d.buffIDs = {} end; wipe(buffSeen); checkBuffs() end
+  function QoL.ClearBuffReminders() wipe(buffList()); wipe(buffIDs()); wipe(buffSeen); checkBuffs() end
   QoL.CheckBuffs = checkBuffs
   QoL._buffCard = function(i) return cards[i] end -- tests
   -- snooze: remember the end time it has now (a buff still running low stays quiet until it is cast again);
@@ -1595,14 +1658,41 @@ local function hiddenByAddon(f)
   if W <= 0 or H <= 0 then return false end
   return l * k >= W or t * k <= 0 or (r and r * k <= 0) or (b and b * k >= H) or false
 end
+-- a saved place inside the screen (6.2.13-beta14, user 20.11.: "fenster einfach nicht im sichtbaren bereich" - Discord again and
+-- again: map, bags, game menu gone after a new resolution / UI scale or a size from "Resize Blizzard windows"): the whole window
+-- on the screen when it fits, else its top left corner. x, y = TOPLEFT offsets from UIParent's BOTTOMLEFT, in the window's
+-- own units (as saved). (A field, not a local: this file is at the 200 locals limit.)
+function QoL.OnScreen(f, x, y)
+  if not (f.GetWidth and f.GetHeight and UIParent.GetEffectiveScale) then return x, y end
+  local ue, fe = UIParent:GetEffectiveScale() or 1, f.GetEffectiveScale and f:GetEffectiveScale() or 1
+  if ue <= 0 or fe <= 0 then return x, y end
+  local W, H = (UIParent:GetWidth() or 0) * ue / fe, (UIParent:GetHeight() or 0) * ue / fe
+  if W <= 0 or H <= 0 then return x, y end
+  local w, h = f:GetWidth() or 0, f:GetHeight() or 0
+  x = math.max(0, math.min(x, W - math.min(w, W)))
+  y = math.min(H, math.max(y, math.min(h, H)))
+  return math.floor(x + 0.5), math.floor(y + 0.5)
+end
 local function applyPos(f, name)
-  if padBag(name) or hiddenByAddon(f) then return end
+  local p = positions()[name]
+  -- a window that is off the screen because of OUR saved place is not "hidden by another addon" (6.2.13-beta14: such a
+  -- window was then never put back)
+  local ours = false
+  if p and f.GetPoint then
+    local pt, rel, rp, x, y = f:GetPoint(1)
+    ours = pt == "TOPLEFT" and rel == UIParent and rp == "BOTTOMLEFT" and x and y and math.abs(x - p[1]) < 1 and math.abs(y - p[2]) < 1
+  end
+  if padBag(name) or (not ours and hiddenByAddon(f)) then return end
+  -- the full screen map has its own place (6.2.13-beta15, Discord kritch 21.11.: "if you move the quest map it changes the
+  -- alignment of the fullscreen map") - the saved place is only for the small map
+  if f.IsMaximized and f:IsMaximized() then return end
   -- "Open loot window at mouse" (6.2.6, Discord 0xveri 12.11.): the game puts the loot window at the cursor - leave it there
   if name == "LootFrame" and GetCVar and GetCVar("lootUnderMouse") == "1" then return end
-  local p = positions()[name]
   if not p or not QoL.Get("moveWindows") then return end
   if inCombat() and f:IsProtected() then return end
-  f:ClearAllPoints(); f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", p[1], p[2])
+  local x, y = QoL.OnScreen(f, p[1], p[2])
+  if x ~= p[1] or y ~= p[2] then p[1], p[2] = x, y end -- the corrected place is kept
+  f:ClearAllPoints(); f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x, y)
 end
 -- Resize Blizzard windows (6.0.1, Discord the_txab, own switch): drag with the right mouse button on a window -
 -- right / down = larger, left / up = smaller (50 - 150 %); the size shows at the cursor while dragging and is
@@ -1691,6 +1781,7 @@ local function makeMovable(name)
     end
     if button ~= "LeftButton" or not QoL.Get("moveWindows") then return end
     if inCombat() and f:IsProtected() then return end
+    if f.IsMaximized and f:IsMaximized() then return end -- the full screen map is not dragged
     if f.SetClampedToScreen then f.ofaClamp = f.IsClampedToScreen and f:IsClampedToScreen() or false; f:SetClampedToScreen(true) end
     f.ofaMoving = true; f:StartMoving()
   end
@@ -1733,6 +1824,19 @@ local function makeMovable(name)
   if type(close) == "table" and close.SetFrameLevel and type(title) == "table" and title.GetFrameLevel
     and not (close.IsProtected and close:IsProtected()) and close:GetFrameLevel() <= title:GetFrameLevel() then
     close:SetFrameLevel(title:GetFrameLevel() + 2)
+  end
+  -- the world map switching to full screen: back to the middle when it still sits at our place of the small map; back to
+  -- small: our place again (6.2.13-beta15)
+  if name == "WorldMapFrame" and f.Maximize and f.Minimize then
+    hooksecurefunc(f, "Maximize", function(self)
+      local p = positions()[name]
+      if not p or (inCombat() and self:IsProtected()) then return end
+      local pt, rel, rp, x, y = self:GetPoint(1)
+      if pt == "TOPLEFT" and rel == UIParent and rp == "BOTTOMLEFT" and x and y and math.abs(x - p[1]) < 1 and math.abs(y - p[2]) < 1 then
+        self:ClearAllPoints(); self:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+      end
+    end)
+    hooksecurefunc(f, "Minimize", function(self) applyPos(self, name) end)
   end
   -- at once (Discord 09.11., Faith: the window showed at its default place for a moment, then jumped), and once more a
   -- frame later in case the game places it again after its OnShow
@@ -3040,12 +3144,14 @@ local function helperFrame()
       self.inc.caption:SetText(L["You get:"])
     end
     -- left card + button
-    local notWorth = b and target and not target.prio and target.value < b.value
+    -- not worth it either when the loot is worth exactly as much (6.2.13-beta16, user 21.11.: "1c gegen 1c .. sowas sollte doch
+    -- eigentlich nicht vorgeschlagen werden")
+    local notWorth = b and target and not target.prio and target.value <= b.value
     local showBrowse = b and not notWorth
     for _, w in ipairs({ self.prev, self.next, self.counter, self.never }) do w:SetShown(showBrowse and true or false) end
     if notWorth then
-      self.sub:SetText(L["This loot is worth less than anything in your bags."])
-      self.out:SetMessage("|cffffd27f" .. L["Not worth picking up."] .. "|r\n" .. L["Everything in your bags is worth more."])
+      self.sub:SetText(L["This loot is not worth more than anything in your bags."])
+      self.out:SetMessage("|cffffd27f" .. L["Not worth picking up."] .. "|r\n" .. L["Everything in your bags is worth as much or more."])
       self.destroy:Hide()
     elseif b then
       self.sub:SetText(self.noLoot and L["Destroy a low-value item, then loot again."] or L["Destroy a low-value item to loot."])
@@ -3098,12 +3204,31 @@ function QoL.CheckBagsFull(force, fromError)
     for i, c in ipairs(f.cands) do if c.bag == keep.bag and c.slot == keep.slot and c.link == keep.link then f.ci = i; break end end
   end
   f:Paint()
-  f:ClearAllPoints()
+  -- placed when it opens or its anchor changes (saved place / at the loot window / centre), not again on every check
+  -- (6.2.13-beta23, Discord emzime: it was moved on every round of the loot loop, ~35 times a second)
   local pos = db() and db().bagsFullPos
-  if type(pos) == "table" and pos[1] then f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", pos[1], pos[2])
-  elseif type(LootFrame) == "table" and LootFrame:IsShown() then f:SetPoint("TOPLEFT", LootFrame, "TOPRIGHT", 6, 0)
-  else f:SetPoint("CENTER", UIParent, "CENTER", 0, 120) end
+  local at = (type(pos) == "table" and pos[1] and "saved") or (type(LootFrame) == "table" and LootFrame:IsShown() and "loot") or "center"
+  if not f:IsShown() or f.placedAt ~= at then
+    f:ClearAllPoints()
+    if at == "saved" then f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", pos[1], pos[2])
+    elseif at == "loot" then f:SetPoint("TOPLEFT", LootFrame, "TOPRIGHT", 6, 0)
+    else f:SetPoint("CENTER", UIParent, "CENTER", 0, 120) end
+    f.placedAt = at
+  end
   f:Show()
+end
+-- one waiting check at a time (6.2.13-beta23, Discord emzime): every "Inventory is full" and every reopened loot window started
+-- a timer of its own, each scanning all bags. QoL._bfPending / QoL._bfError: fields (this file is at the 200-locals limit)
+function QoL.ScheduleBagsFull(delay, fromError)
+  if fromError then QoL._bfError = true end
+  if not (C_Timer and C_Timer.After) then QoL.CheckBagsFull(false, fromError); return end
+  if QoL._bfPending then return end
+  QoL._bfPending = true
+  C_Timer.After(delay or 0.1, function()
+    local e = QoL._bfError
+    QoL._bfPending, QoL._bfError = nil, nil
+    QoL.CheckBagsFull(false, e)
+  end)
 end
 
 function QoL.PrintCheapest()
@@ -3118,7 +3243,7 @@ local function bagsChanged()
   pendingLoot = nil
   if GetNumLootItems and (GetNumLootItems() or 0) >= slot and LootSlotHasItem(slot) then
     pcall(LootSlot, slot)
-    if C_Timer and C_Timer.After then C_Timer.After(0.4, function() QoL.CheckBagsFull() end) end
+    QoL.ScheduleBagsFull(0.4)
   end
 end
 
@@ -3127,7 +3252,7 @@ local function lootError(_, message)
   if message == ERR_INV_FULL or message == ERR_LOOT_NO_SPACE or message == "Inventory is full." then
     -- a Soul Shard from Drain Soul with full bags (6.2.10, Discord elipz 15.11.): no helper - only loot counts then
     if QoL._drainAt and GetTime() - QoL._drainAt < 16 and not (GetNumLootItems and (GetNumLootItems() or 0) > 0) then return end
-    if C_Timer and C_Timer.After then C_Timer.After(0.1, function() QoL.CheckBagsFull(false, true) end) else QoL.CheckBagsFull(false, true) end
+    QoL.ScheduleBagsFull(0.1, true)
   end
 end
 
@@ -3282,9 +3407,7 @@ local function onEventSafe(_, event, ...)
     -- the helper still shown from the last loot (a right-click on the open corpse reopens it): checked again at once,
     -- so it stays, sits at the new loot window and shows the loot (user 06.11. video: it blinked, and an early
     -- "Inventory is full" had switched it to "loot again" while the loot was open)
-    if event == "LOOT_OPENED" and helper and helper:IsShown() and C_Timer and C_Timer.After then
-      C_Timer.After(0.05, function() QoL.CheckBagsFull() end)
-    end
+    if event == "LOOT_OPENED" and helper and helper:IsShown() then QoL.ScheduleBagsFull(0.05) end
   elseif event == "MERCHANT_SHOW" then
     autoRepair(); sellJunk()
   elseif event == "QUEST_DETAIL" then questDetail()
@@ -3308,7 +3431,7 @@ local function onEventSafe(_, event, ...)
     if QoL._drainName and id and GetSpellInfo and GetSpellInfo(id) == QoL._drainName then QoL._drainAt = GetTime() end
   elseif event == "UI_ERROR_MESSAGE" then errorMessage(...)
   elseif event == "LOOT_CLOSED" then
-    pendingLoot = nil
+    pendingLoot = nil; QoL._quickLootAt = nil
     -- 6.1.6 (CurseForge comment 06.11.): a right-click on an open corpse closes and reopens the loot, and the "Inventory
     -- is full" error showed the helper again - it blinked. Hidden a moment later, and not when the loot is open again
     -- (user 06.11. video: 0.3 s was too short - the server reopens the loot later; now 1.5 s and only when no loot
