@@ -9,13 +9,14 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
     quests = {
         {
             id = 5212,
-            liveXPFallback = 6600,
+            liveXPFallback = 14500,
             name = "The Flesh Does Not Lie",
             level = 60,
             requires = 55,
             pickup = "Betina Bigglezink, Eastern Plaguelands (71.7, 49.9)",
             objective = "Recover 10 Plagued Flesh Samples from Stratholme and return them to Betina Bigglezink. You suspect that any creature in Stratholme would have said flesh sample.",
             turnin = "Betina Bigglezink, Eastern Plaguelands",
+            rewardSummary = "14,500 XP · 1g 80s",
         },
         {
             id = 5213,
@@ -28,10 +29,11 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
             turnin = "Betina Bigglezink, Eastern Plaguelands",
             rewardItems = {{13209, "Seal of the Dawn", 3}, {19812, "Rune of the Dawn", 3}},
             rewardChoice = true,
+            rewardSummary = "6,600 XP",
         },
         {
             id = 5214,
-            liveXPFallback = 8300,
+            liveXPFallback = 17450,
             name = "The Great Ezra Grimm",
             level = 60,
             requires = 55,
@@ -39,10 +41,11 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
             objective = "Find Ezra Grimm's smoke shop in Stratholme and recover a box of Grimm's Premium Tobacco. Return to Smokey LaRue when the job is done. ",
             turnin = "Smokey LaRue, Eastern Plaguelands",
             rewardItems = {{13171, "Smokey's Lighter", 2}},
+            rewardSummary = "17,450 XP",
         },
         {
             id = 5243,
-            liveXPFallback = 6600,
+            liveXPFallback = 14500,
             name = "Houses of the Holy",
             level = 60,
             requires = 55,
@@ -58,20 +61,22 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
                 {3928, "Superior Healing Potion", 1},
                 {6149, "Greater Mana Potion", 1},
             },
+            rewardSummary = "14,500 XP · 1g 80s",
         },
         {
             id = 5251,
-            liveXPFallback = 8300,
+            liveXPFallback = 17450,
             name = "The Archivist",
             level = 60,
             requires = 55,
             pickup = "Duke Nicholas Zverenhoff, Eastern Plaguelands (71.6, 50.1)",
             objective = "Travel to Stratholme and find Archivist Galford of the Scarlet Crusade. Destroy him and burn down the Scarlet Archive.",
             turnin = "Duke Nicholas Zverenhoff, Eastern Plaguelands",
+            rewardSummary = "17,450 XP · 1g 80s",
         },
         {
             id = 5262,
-            liveXPFallback = 8300,
+            liveXPFallback = 17450,
             name = "The Truth Comes Crashing Down",
             level = 60,
             requires = 55,
@@ -79,10 +84,11 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
             objective = "Take the Head of Balnazzar to Duke Nicholas Zverenhoff in the Eastern Plaguelands.",
             turnin = "Duke Nicholas Zverenhoff, Eastern Plaguelands (71.6, 50.1)",
             note = "The Head of Balnazzar drops from Balnazzar behind the main gate.",
+            rewardSummary = "17,450 XP",
         },
         {
             id = 5263,
-            liveXPFallback = 8300,
+            liveXPFallback = 18250,
             name = "Above and Beyond",
             level = 60,
             requires = 55,
@@ -90,10 +96,11 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
             objective = "Venture to Stratholme and destroy Baron Rivendare. Take his head and return to Duke Nicholas Zverenhoff. ",
             turnin = "Duke Nicholas Zverenhoff, Eastern Plaguelands",
             note = "Baron Rivendare is behind the service gate.",
+            rewardSummary = "18,250 XP",
         },
         {
             id = 5282,
-            liveXPFallback = 8300,
+            liveXPFallback = 17450,
             name = "The Restless Souls",
             level = 60,
             requires = 55,
@@ -101,26 +108,29 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
             objective = "Use Egan's Blaster on the ghostly and spectral citizens of Stratholme. When the restless souls break free from their ghostly shells, use the blaster again - freedom will be theirs!  Free 15 Restless Souls and return to Egan.",
             turnin = "Egan, Eastern Plaguelands",
             rewardItems = {{13315, "Testament of Hope", 2}},
+            rewardSummary = "17,450 XP · 1g 80s",
         },
         {
             id = 5463,
-            liveXPFallback = 6600,
+            liveXPFallback = 14500,
             name = "Menethil's Gift",
             level = 60,
             requires = 57,
             pickup = "Leonid Barthalomew the Revered, Eastern Plaguelands (71.9, 48.3)",
             objective = "Travel to Stratholme and find Menethil's Gift. Place the Keepsake of Remembrance upon the unholy ground.",
             turnin = "Menethil's Gift, inside Stratholme",
+            rewardSummary = "14,500 XP",
         },
         {
             id = 5848,
-            liveXPFallback = 6600,
+            liveXPFallback = 13850,
             name = "Of Love and Family",
             level = 60,
             requires = 52,
             pickup = "Artist Renfray, Western Plaguelands (65.8, 75.4)",
             objective = "Travel to Stratholme, in the northern part of the Plaguelands. It is in the Scarlet Bastion that you will find the painting 'Of Love and Family,' hidden behind another painting depicting the twin moons of our world.  Return the painting to Tirion Fordring.",
             turnin = "Tirion Fordring, Eastern Plaguelands (5.2, 35.6)",
+            rewardSummary = "13,850 XP",
         },
         {
             id = 5122,
@@ -132,7 +142,7 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
         },
         {
             id = 5125,
-            liveXPFallback = 8300,
+            liveXPFallback = 21900,
             name = "Aurius' Reckoning",
             level = 60,
             requires = 55,
@@ -140,10 +150,11 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
             turnin = "Aurius, inside Stratholme",
             rewardItems = {{17044, "Will of the Martyr", 3}, {17045, "Blood of the Martyr", 3}},
             rewardChoice = true,
+            rewardSummary = "21,900 XP",
         },
         {
             id = 6163,
-            liveXPFallback = 6600,
+            liveXPFallback = 9900,
             name = "Ramstein",
             level = 60,
             requires = 56,
@@ -153,10 +164,11 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
             turnin = "Nathanos Blightcaller, Eastern Plaguelands",
             rewardItems = {{17001, "Elemental Circle", 2}, {18022, "Royal Seal of Alexis", 3}},
             rewardChoice = true,
+            rewardSummary = "9,900 XP · 1g 80s",
         },
         {
             id = 8945,
-            liveXPFallback = 8300,
+            liveXPFallback = 16600,
             name = "Dead Man's Plea",
             level = 60,
             requires = 58,
@@ -165,6 +177,7 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
             turnin = "Ysida Harmon, inside Stratholme",
             rewardItems = {{22137, "Ysida's Satchel", 1}},
             note = "Timed event: reach the Baron before Ysida dies.",
+            rewardSummary = "16,600 XP",
         },
         {
             id = 5305,
@@ -191,6 +204,7 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
         {
             level = 60,
             id = 5281,
+            liveXPFallback = 6600,
             name = "The Restless Souls",
             requires = 55,
             faction = "Both",
@@ -199,6 +213,7 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
             turnin = "Egan, Eastern Plaguelands",
             rewardItems = {
             },
+            rewardSummary = "6,600 XP",
         },
         {
             level = 59,
@@ -282,6 +297,7 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
             npcID = 10997,
             displayID = 10674,
             loot = {
+                {13377, "Miniature Cannon Balls", "Projectile, Bullet", 3}, -- Dungeon Journal (user 25.11.2026)
                 {16708, "Shadowcraft Spaulders", "Shoulder, Leather", 3},
                 {13380, "Willey's Portable Howitzer", "Ranged, Gun", 3},
                 {13381, "Master Cannoneer Boots", "Feet, Plate", 3},
@@ -356,6 +372,8 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
             npcID = 10436,
             displayID = 10698,
             loot = {
+                {13514, "Wail of the Banshee", "Miscellaneous", 3}, -- Dungeon Journal (user 25.11.2026)
+                {273124, "Blueprint: Loom", "Blueprint", 2}, -- Dungeon Journal (user 25.11.2026)
                 {16704, "Dreadmist Sandals", "Feet, Cloth", 3},
                 {13534, "Banshee Finger", "Ranged, Wand", 3},
                 {13535, "Coldtouch Phantom Wraps", "Chest, Cloth", 2},
@@ -372,6 +390,7 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
             npcID = 10437,
             displayID = 9793,
             loot = {
+                {13508, "Eye of Arachnida", "Miscellaneous", 2}, -- Dungeon Journal (user 25.11.2026)
                 {16675, "Beaststalker's Boots", "Feet, Mail", 3},
                 {13529, "Husk of Nerub'enkan", "Off Hand, Shield", 3},
                 {13530, "Fangdrip Runners", "Feet, Cloth", 2},
@@ -418,6 +437,7 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
             npcID = 10440,
             displayID = 10729,
             loot = {
+                {13335, "Deathcharger's Reins", "Mount", 3}, -- Dungeon Journal (user 25.11.2026)
                 {16668, "Kilt of Elements", "Legs, Mail", 3},
                 {16678, "Beaststalker's Pants", "Legs, Mail", 3},
                 {16687, "Magister's Leggings", "Legs, Cloth", 3},
@@ -484,6 +504,8 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
             optional = true,
             displayID = 10475, -- CMaNGOS classic-db creature_template (user 23.11.2026)
             loot = {
+                {273129, "Essence of Anarchy", "Reagent", 2}, -- Dungeon Journal (user 25.11.2026)
+                {273117, "Blueprint: Anarchist's Workbench", "Blueprint", 2}, -- Dungeon Journal (user 25.11.2026)
                 {276394, "Luxurious Smoking Jacket", "Chest, Cloth", 3},
                 {276395, "Grimm's Packing Gloves", "Hands, Cloth", 3},
                 {276396, "Ezra's Seal of Authenticity", "Finger", 3},

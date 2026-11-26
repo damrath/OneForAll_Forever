@@ -30,6 +30,7 @@ Commands
 /oneforall gv           How the Gear Value of the item under the mouse comes about (or /ofa gv [item link])
 /oneforall errors       Show errors OneForAll caught (for bug reports); "errors clear" empties the list
 /oneforall mem          Show how much memory OneForAll uses right now
+/oneforall cpu          Which parts of OneForAll use the CPU (with /console scriptProfile 1); "cpu reset" starts again
 /oneforall thanks       Show the last buffs seen by "Thanks for buffs"
 /oneforall talentdump    Save all talent IDs to the SavedVariables (for the addon author)
 /oneforall scale [n]     Set the window size (60-140 or 0.6-1.4); without a value: reset to 100 %
@@ -70,6 +71,49 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 
 Changelog (newest first)
 ========================
+
+6.2.17 - New dungeon tracker, loot rolls and dungeon quests
+===========================================================
+Dungeon tracker
+- A compact list: one row per boss with its portrait (rare and optional bosses round, at the end); the next boss has a gold
+  bar, killed bosses fold into "3 / 8 defeated" (unfolded in the order they died, with their kill times), the rest into
+  "N more" - click to unfold. A rare moves up as soon as you see it alive; a skipped boss waits in "N more" and the boss after
+  your last kill is next. A green triangle = an upgrade in its loot, "!" = a quest in your log needs it.
+- Left-click a boss: target it and pick a raid mark in a dropdown under its row (a rare only gets a skull; works in combat);
+  right-click: its loot (upgrades framed green with the green arrow); Shift-click: open it in OneForAll. Both close after
+  5 seconds unless the mouse is on them. A killed boss's tooltip shows what it dropped in this run and who got it.
+- The run's clock starts with the first kill (best and average times too). Time, Mob XP and Gold sit in the foot, the gold
+  with coin icons; "Add loot value to gold" (vendor or Auctionator prices) adds what you looted.
+- Loot rolls: a handle on the tracker's bottom edge opens the list of everything the group rolled on in this run - item,
+  winner with roll and choice, every player's roll on a click, names in class colours. Kept with the run (History shows it).
+  It can open by itself for a new roll, hide itself after a few seconds, leave out green items, and its handle can be hidden.
+- Settings in their own window (cog): hide time / XP / gold / bosses, dungeon picture, lock, visible bosses (3 - 20),
+  opacity, gold and loot roll options and "New run". New defaults: 5 visible bosses, 85 % opacity, loot value with auction
+  prices on, the current loot roll always shown, auto-hide after 10 seconds, green items hidden.
+- Resizing at the corner shows the size in %; the instances-per-hour counter is gone.
+- Fixes: in a group, bosses the game names only in the XP line (e.g. Arugal's Voidwalker) count as killed, so the run
+  finishes; a reset the tracker did not hear of starts a new run; a finished run no longer goes on with another group;
+  Horde-only bosses (the Lost Dwarves, the Lordaeron Captain) no longer block Alliance runs; Sergeant Bly is optional; the
+  new Forever dungeons are recognised in every client language; upgrade marks skip gear your class cannot use.
+
+Dungeons & Raids
+- Dungeon quests in a new look: neutral rows with a coloured bar and a status label (Completed, Ready to turn in, In log,
+  Chain, Available, Unavailable with its reason, No longer available) and a colour legend; the details on the dark panel
+  with gold headings, the whole quest chain, reward cards with a stripe in the item's quality colour and boxes for XP
+  (gold), money and reputation (teal). "Chain starts at" shows where a chain begins.
+- XP, money and reputation rewards filled in for 243 dungeon quests; 24 dungeon quests added and 26 doubles removed;
+  115 missing boss drops added to 62 bosses (e.g. Zul'Farrak, Uldaman, the new Forever Blueprints).
+- The "Dungeons" button, the arrows and Map / Bosses & Loot / Quests sit inside the dungeon's banner.
+
+Quality of Life and more
+- The loot feed shows your skill-ups (weapons, Defense, professions) - two new switches, on by default.
+- Thanks for buffs moved to Social > Thanks, with your own emote or text instead of /thank.
+- The nearby alert popup can be dragged; the Bags full helper has a "Never opens for" list.
+- Fixes: quest marks on nameplates no longer cause errors with other nameplate addons or Blizzard's auras; Skill-Up Helper
+  trainers (Artisan Leatherworking for both factions, Artisan Engineering) and the plain Blacksmith Hammer; Gear Planner
+  no longer suggests Onyxia and AQ war rewards too early; four Library Books marked unavailable.
+- New: /ofa cpu shows which parts of OneForAll use the most CPU (with the game's script profiling on).
+- Data: quest data (QuestieDB), BiS lists, recipes and talents updated.
 
 6.2.16 - Hotfix: boss lists for a clean dungeon tracker
 =======================================================

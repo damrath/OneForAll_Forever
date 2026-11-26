@@ -389,6 +389,10 @@ SlashCmdList.ONEFORALL = function(cmd)
     if UpdateAddOnMemoryUsage then UpdateAddOnMemoryUsage() end
     local kb = get and get("OneForAll")
     if kb then msg(string.format(L["Memory: %.1f MB (includes garbage the game has not cleaned up yet)."], kb / 1024)) end
+  elseif cmd == "cpu" or cmd == "cpu reset" then
+    -- which of our files use the CPU (6.2.17-beta54; only with /console scriptProfile 1 and a /reload, see Profiler.lua)
+    if not (FLT.Profiler and FLT.Profiler.on) then msg(L["CPU check: type /console scriptProfile 1, then /reload, play a few minutes and type /ofa cpu again. Turn it off afterwards with /console scriptProfile 0 and /reload."])
+    elseif cmd == "cpu reset" then FLT.Profiler.Reset() else FLT.Profiler.Report() end
   elseif cmd == "gv" or cmd:match("^gv%s") then
     if FLT.GearValue then FLT.GearValue.Debug(cmd:match("(item:[%-%d:]+)")) end
   elseif cmd == "trainer" then

@@ -14,6 +14,7 @@ FLT.QoL = QoL
 
 local DEFAULTS = {
   lootFeedQuality = 1, lootFeedMoney = true,
+  lootFeedSkillWeapon = true, lootFeedSkillProf = true, -- skill-ups in the loot feed (6.2.17-beta29): on (user 25.11.: "standard an")
   inviteMode = "friendsguild", keywordMode = "friendsguild", keyword = "inv", duelMode = "friendsguild",
   durabilityPct = 20, mmDir = "auto", logoColor = "teal", -- logo color: turquoise by default (user 27.10.)
   logoSize = 100, -- size of the minimap / collector button in % (6.2.11, user 17.11.; 100 = as before)
@@ -620,12 +621,53 @@ local function nameFromGUID(guid)
   return (name:match("^([^%-]+)")) -- the emote wants the plain name
 end
 
+-- what is sent (6.2.17-beta28, user 25.11.: "ein eigenes emote senden ... /thank sollte standard sein ... z.B. /hello oder sogar
+-- "/emote says thank you""): qol.thanksText empty = /thank; another emote command (/hello, /bow, also the client's own words) = that
+-- emote at the player; /e, /emote, /me or plain text = an emote line in the chat, %n = the player's name
+do -- (in a block: the file is near Lua's limit of 200 locals)
+local emoteTokens -- "/hello" -> "HELLO", from the game's EMOTEn_CMDm / EMOTEn_TOKEN, built once when needed
+local function emoteToken(cmd)
+  if not emoteTokens then
+    emoteTokens = {}
+    for i = 1, tonumber(MAXEMOTEINDEX) or 1000 do
+      local tok = _G["EMOTE" .. i .. "_TOKEN"]
+      if type(tok) == "string" then
+        for j = 1, 9 do local c = _G["EMOTE" .. i .. "_CMD" .. j]; if type(c) == "string" then emoteTokens[c:lower()] = tok end end
+      end
+    end
+  end
+  return emoteTokens[cmd]
+end
+local function isEmoteCmd(cmd)
+  if cmd == "/e" or cmd == "/em" or cmd == "/emote" or cmd == "/me" then return true end
+  for j = 1, 9 do local c = _G["SLASH_EMOTE" .. j]; if type(c) == "string" and c:lower() == cmd then return true end end
+  return false
+end
+-- kind ("emote" / "text"), the token or the text, what the log shows; nil for an unknown command
+function QoL.ThankAction(text)
+  text = type(text) == "string" and text:match("^%s*(.-)%s*$") or ""
+  if text == "" then return "emote", "THANK", "/thank" end
+  local cmd, rest = text:match("^(/%S+)%s*(.*)$")
+  if not cmd then return "text", text, text end
+  cmd = cmd:lower()
+  if isEmoteCmd(cmd) then if rest == "" then return nil end return "text", rest, text end
+  local tok = emoteToken(cmd)
+  if tok then return "emote", tok, cmd end
+  return nil
+end
+end
 local function sendThank(name)
+  local kind, v = QoL.ThankAction(QoL.Get("thanksText"))
+  if kind == "text" then
+    if not SendChatMessage then return false end
+    return (pcall(SendChatMessage, (v:gsub("%%[nN]", function() return name end)), "EMOTE"))
+  end
+  v = kind == "emote" and v or "THANK" -- an unknown command: the /thank as before
   if C_ChatInfo and C_ChatInfo.PerformEmote then
-    local ok, restricted = pcall(C_ChatInfo.PerformEmote, "THANK", name)
+    local ok, restricted = pcall(C_ChatInfo.PerformEmote, v, name)
     return ok and not (readable(restricted) and restricted)
   end
-  if DoEmote then return (pcall(DoEmote, "THANK", name)) end
+  if DoEmote then return (pcall(DoEmote, v, name)) end
   return false
 end
 
@@ -642,7 +684,7 @@ local function fireThanks(guid)
   thanksPending[guid] = nil
   if thanked[guid] and t - thanked[guid] < THANKS_PLAYER_CD then logThanks(string.format(L["%s from %s: thanked recently"], p.spell, p.name)); return end
   thanked[guid], lastThanks = t, t
-  if sendThank(p.name) then logThanks(string.format(L["%s from %s: /thank"], p.spell, p.name))
+  if sendThank(p.name) then logThanks(string.format(L["%s from %s: %s"], p.spell, p.name, select(3, QoL.ThankAction(QoL.Get("thanksText"))) or "/thank"))
   else logThanks(string.format(L["%s from %s: the game did not allow the emote"], p.spell, p.name)) end
 end
 
@@ -2732,6 +2774,27 @@ local function lootMessage(text)
   feedAdd(icon, (count > 1 and ("+" .. count .. " ") or "+") .. name, c[1], c[2], c[3])
 end
 
+-- Skill-ups (6.2.17-beta29, user 25.11.: "in den loot feed waffen skill ups aufnehmen? und skill ups von berufen? ... schalter in
+-- qol standard an"): CHAT_MSG_SKILL "Your skill in %s has increased to %d." - a profession (FLT.ProfKey knows its name in the
+-- client's language) or the rest (weapons, defense, lockpicking). (A field, not a local: the file is near Lua's 200-locals limit.)
+function QoL.SkillMessage(text)
+  if not QoL.Get("lootFeed") or type(text) ~= "string" then return end
+  QoL._skillPat = QoL._skillPat or toPattern(SKILL_RANK_UP) or "^Your skill in (.+) has increased to (%d+)%.$"
+  local name, rank = text:match(QoL._skillPat)
+  if not name then return end
+  if not tonumber(rank) then name, rank = rank, name end -- a language with the number first
+  local prof = FLT.ProfKey and FLT.ProfKey(name)
+  if prof and not QoL.Get("lootFeedSkillProf") then return end
+  if not prof and not QoL.Get("lootFeedSkillWeapon") then return end
+  local icon
+  if prof and FLT.PROF_SPELLS and FLT.PROF_SPELLS[prof] then
+    local id = FLT.PROF_SPELLS[prof]
+    pcall(function() icon = (C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(id)) or (GetSpellTexture and GetSpellTexture(id)) end)
+  end
+  icon = icon or (prof and "Interface\\Icons\\Trade_BlackSmithing") or (name == DEFENSE and "Interface\\Icons\\Ability_Defend") or "Interface\\Icons\\INV_Sword_04"
+  feedAdd(icon, name .. " " .. rank, 0.45, 0.72, 1) -- the blue of the game's skill lines
+end
+
 -- Money: PLAYER_MONEY gives the amount, CHAT_MSG_MONEY tells that it was loot.
 -- The two events can come in either order, so whichever comes second shows it.
 local lastMoney, moneyMsgAt, pendingGain, pendingAt = nil, -10, 0, -10
@@ -2968,6 +3031,24 @@ end
 function QoL.ClearNever()
   local d = db(); if d then d.bagsNever = {} end
 end
+-- 6.2.17-beta2 (Discord .vgd 24.11.; user 24.11.: "eine negativliste ... items wo der bags full helper nie anschlaegt. die liste
+-- kann man selbst befuellen"): loot on this list never opens the helper; filled in the settings (drop an item on "Add item").
+-- A Soul Shard on it also covers the warlock's "Inventory is full" without a loot window (Drain Soul's shard; QoL fields:
+-- this file is at the 200-locals limit)
+function QoL.IgnoreList()
+  local d = db(); if not d then return {} end
+  d.bagsIgnore = d.bagsIgnore or {}
+  return d.bagsIgnore
+end
+function QoL.GetIgnoreItems()
+  local out = {}
+  for id in pairs(QoL.IgnoreList()) do if tonumber(id) then out[#out + 1] = tonumber(id) end end
+  table.sort(out)
+  return out
+end
+function QoL.AddIgnore(id) id = tonumber(id); if id then QoL.IgnoreList()[id] = true end end
+function QoL.RemoveIgnore(id) QoL.IgnoreList()[id] = nil end
+function QoL.ClearIgnore() local d = db(); if d then d.bagsIgnore = {} end end
 local function itemDetails(link)
   local quality, classID, setID
   pcall(function()
@@ -3204,6 +3285,15 @@ function QoL.CheckBagsFull(force, fromError)
   local left = remainingLoot()
   local f = helperFrame()
   if (QoL.FreeBagSlots() or 0) > 0 then f:Hide(); return end
+  -- loot on the "Never opens for" list does not count (6.2.17-beta2); only such loot left: no helper
+  local ign = QoL.IgnoreList()
+  if next(ign) and #left > 0 then
+    for i = #left, 1, -1 do
+      local id = left[i].link and tonumber(left[i].link:match("item:(%d+)"))
+      if id and ign[id] then table.remove(left, i) end
+    end
+    if #left == 0 then f:Hide(); return end
+  end
   -- no loot window (e.g. a quest object or herb that could not be looted):
   -- only make room; loot it again afterwards
   if #left == 0 then
@@ -3278,6 +3368,9 @@ local function lootError(_, message)
   if message == ERR_INV_FULL or message == ERR_LOOT_NO_SPACE or message == "Inventory is full." then
     -- a Soul Shard from Drain Soul with full bags (6.2.10, Discord elipz 15.11.): no helper - only loot counts then
     if QoL._drainAt and GetTime() - QoL._drainAt < 16 and not (GetNumLootItems and (GetNumLootItems() or 0) > 0) then return end
+    -- 6.2.17-beta2 (Discord .vgd 24.11.: still at every shard): a Soul Shard on the "Never opens for" list - a warlock's full bags
+    -- without a loot window never open the helper
+    if QoL.IgnoreList()[6265] and not (GetNumLootItems and (GetNumLootItems() or 0) > 0) and UnitClass and select(2, UnitClass("player")) == "WARLOCK" then return end
     QoL.ScheduleBagsFull(0.1, true)
   end
 end
@@ -3389,7 +3482,7 @@ local EVENTS = {
   "QUEST_DETAIL", "QUEST_PROGRESS", "QUEST_COMPLETE", "QUEST_GREETING", "GOSSIP_SHOW", "QUEST_ACCEPT_CONFIRM",
   "PARTY_INVITE_REQUEST", "CHAT_MSG_WHISPER", "DUEL_REQUESTED",
   "UPDATE_INVENTORY_DURABILITY", "BAG_UPDATE_DELAYED", "QUEST_LOG_UPDATE", "PLAYER_XP_UPDATE", "PLAYER_LEVEL_UP", "QUEST_WATCH_LIST_CHANGED",
-  "PLAYER_TARGET_CHANGED", "GROUP_ROSTER_UPDATE", "CHAT_MSG_LOOT", "CHAT_MSG_MONEY", "PLAYER_MONEY", "UI_ERROR_MESSAGE", "LOOT_CLOSED", "CVAR_UPDATE", "PLAYER_REGEN_ENABLED", "PLAYER_REGEN_DISABLED", "ZONE_CHANGED_NEW_AREA",
+  "PLAYER_TARGET_CHANGED", "GROUP_ROSTER_UPDATE", "CHAT_MSG_LOOT", "CHAT_MSG_MONEY", "CHAT_MSG_SKILL", "PLAYER_MONEY", "UI_ERROR_MESSAGE", "LOOT_CLOSED", "CVAR_UPDATE", "PLAYER_REGEN_ENABLED", "PLAYER_REGEN_DISABLED", "ZONE_CHANGED_NEW_AREA",
 }
 for _, e in ipairs(EVENTS) do pcall(ev.RegisterEvent, ev, e) end
 if ev.RegisterUnitEvent then pcall(ev.RegisterUnitEvent, ev, "UNIT_AURA", "player") else pcall(ev.RegisterEvent, ev, "UNIT_AURA") end
@@ -3479,6 +3572,7 @@ local function onEventSafe(_, event, ...)
   elseif event == "ZONE_CHANGED_NEW_AREA" then if QoL.Get("buffReminder") and QoL.Get("buffSleepCities") then checkBuffs() end
   elseif event == "CHAT_MSG_LOOT" then lootMessage(...)
   elseif event == "CHAT_MSG_MONEY" then moneyMessage()
+  elseif event == "CHAT_MSG_SKILL" then QoL.SkillMessage(...)
   elseif event == "PLAYER_MONEY" then moneyChanged()
   elseif event == "UPDATE_INVENTORY_DURABILITY" then checkDurability()
   elseif event == "BAG_UPDATE_DELAYED" then updateBagSlots(); bagsChanged()

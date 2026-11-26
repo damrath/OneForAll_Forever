@@ -110,6 +110,22 @@ FLT.DUNGEON_REGISTRY["Shadowfang Keep"] = {
             rewardItems = {
             },
         },
+        {
+            level = 26,
+            id = 95140,
+            liveXPFallback = 2650,
+            name = "Old Fire-Eye",
+            requires = 20,
+            faction = "Horde",
+            class = "PALADIN",
+            pickup = "Lumina Windsinger, Silverpine Forest (43.4, 41.0)",
+            objective = "Use the Moonsilver Blade to destroy Old Fire-Eye in Silverpine Forest.",
+            turnin = "Lumina Windsinger, Silverpine Forest",
+            rewardItems = {
+                {267369, "Wolfsbane", 3},
+            },
+            rewardSummary = "2,650 XP · +150 Earthen Ring · +75 Orgrimmar · +150 Undercity",
+        },
     },
     bosses = {
         {
@@ -140,6 +156,7 @@ FLT.DUNGEON_REGISTRY["Shadowfang Keep"] = {
             displayID = 524,
             aliases = {"Razorclaw the Butcher"},
             loot = {
+                {273096, "Blueprint: Tanning Rack", "Blueprint", 2}, -- Dungeon Journal (user 25.11.2026)
                 {1292, "Butcher's Cleaver", "One-Hand, Axe", 3},
                 {6226, "Bloody Apron", "Chest, Cloth", 3},
                 {6633, "Butcher's Slicer", "One-Hand, Sword", 3},
@@ -162,6 +179,8 @@ FLT.DUNGEON_REGISTRY["Shadowfang Keep"] = {
             displayID = 3223,
             aliases = {"Commander Springvale"},
             loot = {
+                {273105, "Blueprint: Toxin Study", "Blueprint", 2}, -- Dungeon Journal (user 25.11.2026)
+                {6341, "Eerie Stable Lantern", "Held In Off-hand", 3}, -- Dungeon Journal (user 25.11.2026)
                 {3191, "Arced War Axe", "Two-Hand, Axe", 3},
                 {6320, "Commander's Crest", "Off Hand, Shield", 3},
                 {273643, "Worgenbane Talisman", "Trinket", 3},

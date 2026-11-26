@@ -366,6 +366,9 @@ function GV.Upgrade(id, link)
   local _, _, _, loc, _, cid, sub = GetItemInfoInstant(id)
   local slots = loc and FLT.GEAR_LOC_SLOTS and FLT.GEAR_LOC_SLOTS[loc]
   if not slots then return nil end
+  -- gear the class cannot use has no Value (6.2.17, Discord djmarscomet 24.11.: the tracker marked a two-handed mace as an
+  -- upgrade for a hunter - the tooltip and the bag marks checked it, the tracker / History did not)
+  if FLT.GearCanUse and not FLT.GearCanUse(loc, cid, sub) then return nil end
   local slot = slotFor(loc, slots)
   link = link and tonumber(link:match("item:(%d+)")) == id and bare(link) or nil
   local v = itemValue(id, slot, link)

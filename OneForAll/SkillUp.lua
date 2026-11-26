@@ -448,10 +448,17 @@ local function toolFor(r, got)
       if got[item] then return item end
       if not owned and SU.Have(item) > 0 then owned = item end
     end
-    if c == cat then exact = item end
+    -- the plain tool of the category: one that can be bought before a made one, then the lowest ID (Discord zlobr1978 24.11.:
+    -- Rough Copper Bomb asked for the Mithril Blacksmith Hammer - pairs() order picked any hammer of the category; 6.2.17-beta14)
+    if c == cat then
+      local bop = FLT.TOOL_BOP and FLT.TOOL_BOP[item] or false
+      local ebop = exact and FLT.TOOL_BOP and FLT.TOOL_BOP[exact] or false
+      if not exact or (ebop and not bop) or (bop == ebop and item < exact) then exact = item end
+    end
   end
   return owned or exact
 end
+SU._toolFor = toolFor -- tests
 
 -- buy an intermediate ready-made or craft it (6.2.12-beta18): OneForAllCharDB.skillUpPrep[prof][itemID] = "buy" / "craft";
 -- nil = the cheaper way

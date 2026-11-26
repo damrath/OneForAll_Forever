@@ -439,7 +439,9 @@ local function buildIndex()
     for id, req, qs, name in QR.items:gmatch("(%d+),(%d+),([%d/]+),([^\n]*)") do
       local pick
       for q in qs:gmatch("%d+") do
-        local info = not closedQuests[tonumber(q)] and FLT.QuestInfo(tonumber(q))
+        -- 6.2.17-beta2 (Discord 1574452568271228988): a quest of a raid that opens later (QR.later, Head of Onyxia) from that day on
+        local lr = QR.later and QR.later[tonumber(q)]
+        local info = not closedQuests[tonumber(q)] and not (lr and not FLT.RaidOpen(lr)) and FLT.QuestInfo(tonumber(q))
         if info and (not pick or (info.side == fac and pick.side ~= fac)) then pick = info end
       end
       if pick then

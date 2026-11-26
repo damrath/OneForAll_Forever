@@ -42,19 +42,6 @@ FLT.DUNGEON_REGISTRY["Scarlet Monastery: Graveyard"] = {
             rewardSummary = "7,850 XP · +150 Undercity",
             note = "Needs Going, Going, Guano! from Razorfen Kraul. Hearts of Zeal drop from Scarlet enemies in every wing.",
         },
-        {
-            level = 40,
-            id = 79946,
-            name = "A Brother In Need",
-            requires = 35,
-            faction = "Alliance",
-            class = "PALADIN",
-            pickup = "Katherine the Pure, Stormwind City (48.5, 49.1)",
-            objective = "Speak with Katherine to learn more about Aeonas, and then find him in the Scarlet Monastery.",
-            turnin = "Aeonas, inside Scarlet Monastery: Graveyard",
-            rewardItems = {
-            },
-        },
     },
     bosses = {
         {

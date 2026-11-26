@@ -178,6 +178,7 @@ function FLT:GetBossType(boss)
 end
 function FLT:GetBossRank(boss)
   if not boss then return nil end
+  if boss.factionOnly == "Horde" then return N"Horde only" elseif boss.factionOnly == "Alliance" then return N"Alliance only" end
   if boss.optional then return N"Optional" end
   if boss.rare then return N"Rare" end
   if boss.npcID and FLT.BOSS_SUMMONED and FLT.BOSS_SUMMONED[boss.npcID] then return N"Summoned" end
